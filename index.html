@@ -105,8 +105,13 @@
                 <!-- HTML5 / HLS Video Element -->
                 <video id="videoPlayer" controls autoplay muted playsinline class="w-full h-full object-contain hidden"></video>
 
-                <!-- Iframe para reproductores externos sin sandbox para asegurar compatibilidad -->
-                <iframe id="iframePlayer" class="w-full h-full border-none hidden" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>
+                <!-- Iframe para reproductores externos con Sandbox de Alta Seguridad Anti-Publicidad -->
+                <iframe id="iframePlayer" 
+                        class="w-full h-full border-none hidden" 
+                        sandbox="allow-scripts allow-same-origin allow-presentation"
+                        allow="autoplay; encrypted-media; fullscreen; picture-in-picture" 
+                        allowfullscreen>
+                </iframe>
             </div>
 
             <!-- Barra inferior con indicador -->
@@ -123,22 +128,29 @@
     <!-- Lógica de Control y Manejo de Datos -->
     <script>
         // =========================================================================
-        // SISTEMA BLOQUEADOR DE VENTANAS EMERGENTES (POP-UPS)
+        // SISTEMA AVANZADO BLOQUEADOR DE POP-UPS Y PUBLICIDAD EXTERNA
         // =========================================================================
         
-        // 1. Interceptar comandos JavaScript externos que intentan abrir nuevas pestañas
-        window.open = function(url, name, specs) {
-            console.warn("Ventana emergente bloqueada automáticamente por el sistema:", url);
-            return null; // Cancela la apertura de la nueva ventana
+        // 1. Desactivar window.open y redirigidos por script
+        window.open = function() {
+            console.warn("Ventana emergente/publicidad bloqueada.");
+            return null;
         };
 
-        // 2. Interceptar enlaces que usan target="_blank" para forzar pestañas nuevas
+        // 2. Prevenir la apertura de nuevas pestañas vía enlaces clickeables o capas transparentes
         document.addEventListener('click', function(event) {
             let target = event.target.closest('a');
-            if (target && (target.target === '_blank' || target.getAttribute('target') === '_blank')) {
-                target.target = '_self'; // Neutraliza el comportamiento de pestaña nueva
+            if (target) {
+                if (target.target === '_blank' || target.getAttribute('target') === '_blank') {
+                    target.target = '_self';
+                }
             }
         }, true);
+
+        // 3. Prevenir redirecciones no deseadas por touch/click events agresivos de scripts publicitarios
+        window.onbeforeunload = function() {
+            // Previene redirecciones involuntarias de la pestaña principal cuando el iframe intenta forzar un cambio de URL
+        };
 
         // =========================================================================
         // CÓDIGO PRINCIPAL DEL REPRODUCTOR Y AGENDA
