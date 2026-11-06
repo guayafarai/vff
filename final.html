@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROJADIRECTA - Agenda Deportiva por Partidos</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        rojaBg: '#121212',
+                        rojaRed: '#d32f2f',
+                        rojaDarkRed: '#b71c1c',
+                        rojaPanel: '#1e1e1e',
+                        rojaHeader: '#262626'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- HLS.js para reproducción de streams .m3u8 -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: Arial, Helvetica, sans-serif; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #121212; }
+        ::-webkit-scrollbar-thumb { background: #d32f2f; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-rojaBg text-gray-200 min-h-screen flex flex-col">
+
+    <!-- Header Banner estilo Rojadirecta -->
+    <header class="bg-gradient-to-r from-rojaDarkRed via-rojaRed to-rojaDarkRed border-b-2 border-red-700 shadow-xl px-4 py-3">
+        <div class="max-w-[1100px] mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="showAgendaView()">
+                <div class="bg-black text-white font-black px-2.5 py-1 text-xl tracking-tighter border border-red-500 rounded">
+                    ROJA<span class="text-red-500">DIRECTA</span>
+                </div>
+                <span class="text-xs font-bold text-red-200 uppercase tracking-widest hidden sm:inline-block">
+                    Agenda Deportiva En Vivo
+                </span>
+            </div>
+
+            <!-- Acciones de Sincronización -->
+            <div id="headerActions" class="flex items-center space-x-2">
+                <button onclick="fetchAgendaJson()" id="btnActualizar" class="bg-black hover:bg-zinc-900 border border-red-500/50 text-white text-xs px-3 py-1.5 rounded font-bold transition flex items-center gap-1.5 shadow">
+                    <i id="updateIcon" class="fa-solid fa-rotate text-red-500"></i> Actualizar
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Sub-header Bar con partidos rotativos en carrusel -->
+    <div class="bg-black border-b border-zinc-800 py-1.5 px-4 text-center text-xs text-gray-400 overflow-hidden">
+        <span class="text-red-500 font-bold flex-shrink-0"><i class="fa-solid fa-circle-radiation"></i> EVENTOS EN DIRECTO:</span>
+        <span id="tickerMatch" class="ml-2 font-semibold text-gray-200 transition-all duration-500 inline-block">
+            Cargando agenda de partidos...
+        </span>
+    </div>
+
+    <!-- Main Content Layout -->
+    <main class="flex-1 max-w-[1100px] w-full mx-auto p-3 md:p-5">
+
+        <!-- ==================== VISTA 1: AGENDA DE PARTIDOS ==================== -->
+        <section id="agendaView" class="flex flex-col space-y-4">
+            
+            <div class="bg-rojaPanel border border-zinc-800 rounded overflow-hidden shadow-xl">
+                <!-- Buscador de la Agenda -->
+                <div class="bg-rojaHeader p-3 border-b border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <span class="text-sm font-bold text-red-500 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-list-ul"></i> Agenda de Partidos Disponibles
+                    </span>
+                    <input type="text" id="searchInput" oninput="filterEvents()" placeholder="Buscar partido o torneo..." class="bg-black border border-zinc-700 rounded px-3 py-1.5 text-xs text-white outline-none focus:border-red-500 w-full sm:w-72">
+                </div>
+
+                <!-- Lista de Partidos -->
+                <div id="eventsList" class="divide-y divide-zinc-800 text-xs">
+                    <!-- Filas inyectadas dinámicamente -->
+                </div>
+            </div>
+
+        </section>
+
+        <!-- ==================== VISTA 2: REPRODUCTOR DE PARTIDO ==================== -->
+        <section id="playerView" class="hidden flex-col space-y-3">
+            
+            <!-- Barra Superior del Partido con Botón Atrás -->
+            <div class="bg-rojaPanel border border-zinc-800 p-3 rounded flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+                <button onclick="showAgendaView()" class="bg-red-700 hover:bg-red-600 text-white text-xs px-4 py-2 rounded font-bold transition flex items-center gap-2 shadow">
+                    <i class="fa-solid fa-arrow-left"></i> Volver a la Agenda
+                </button>
+                <div class="text-center sm:text-right">
+                    <h2 id="currentTitle" class="text-sm md:text-base font-bold text-red-400">Título del Partido</h2>
+                    <p id="currentMeta" class="text-xs text-gray-400">Información del canal</p>
+                </div>
+            </div>
+
+            <!-- Video Player Box -->
+            <div class="relative bg-black rounded border-2 border-zinc-800 aspect-video w-full flex items-center justify-center overflow-hidden shadow-2xl">
+                <!-- HTML5 / HLS Video Element -->
+                <video id="videoPlayer" controls autoplay muted playsinline class="w-full h-full object-contain hidden"></video>
+
+                <!-- Iframe sin sandbox restrictivo para permitir que carguen los reproductores externos -->
+                <iframe id="iframePlayer" class="w-full h-full border-none hidden" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>
+            </div>
+
+            <!-- Barra inferior con indicador -->
+            <div class="flex justify-between items-center bg-rojaPanel border border-zinc-800 p-3 rounded">
+                <span class="text-xs text-green-400 font-bold flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> TRANSMISIÓN EN VIVO
+                </span>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Lógica de Control y Manejo de Datos -->
+    <script>
+        const _p1 = "aHR0cHM6Ly9sYTE4aGQuc3U=";
+        const _p2 = "L2V2ZW50b3MvanNvbi9hZ2VuZGExMjMuanNvbg==";
+
+        function getTargetUrl() {
+            return atob(_p1) + atob(_p2);
+        }
+
+        let rawEventsData = [];
+        let groupedEventsList = [];
+        let hlsInstance = null;
+        let tickerIndex = 0;
+        let tickerInterval = null;
+
+        document.addEventListener("DOMContentLoaded", () => {
+            fetchAgendaJson();
+        });
+
+        function showAgendaView() {
+            document.getElementById("agendaView").classList.remove("hidden");
+            document.getElementById("playerView").classList.add("hidden");
+            document.getElementById("headerActions").classList.remove("hidden");
+
+            const videoElem = document.getElementById("videoPlayer");
+            const iframeElem = document.getElementById("iframePlayer");
+            videoElem.pause();
+            videoElem.src = "";
+            iframeElem.src = "";
+            if (hlsInstance) {
+                hlsInstance.destroy();
+                hlsInstance = null;
+            }
+        }
+
+        function showPlayerView() {
+            document.getElementById("agendaView").classList.add("hidden");
+            document.getElementById("playerView").classList.remove("hidden");
+            document.getElementById("headerActions").classList.add("hidden");
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        async function fetchAgendaJson() {
+            const icon = document.getElementById("updateIcon");
+            icon.classList.add("fa-spin");
+
+            try {
+                const endpoint = getTargetUrl();
+                const response = await fetch(endpoint);
+                if (!response.ok) throw new Error("Error al obtener datos del servidor");
+                const data = await response.json();
+                
+                if (Array.isArray(data)) {
+                    rawEventsData = data;
+                    renderAgendaPorPartidos(rawEventsData);
+                }
+            } catch (error) {
+                console.warn("CORS detectado (esperado en pruebas directas sin proxy). Usando datos de prueba completos.", error);
+                rawEventsData = [
+                    { "category": "futbol", "link": "https://la18hd.su/vivo/canales.php?stream=espn2", "title": "Rolex Paris Masters: Tommy Paul vs Ben Shelton", "time": "08:00", "status": "En vivo", "language": "Español", "date": "2026-11-06" },
+                    { "category": "futbol", "link": "https://la18hd.su/vivo/canales.php?stream=disney1", "title": "Rolex Paris Masters: Tommy Paul vs Ben Shelton", "time": "08:00", "status": "En vivo", "language": "Español", "date": "2026-11-06" },
+                    { "category": "futbol", "link": "https://la18hd.su/vivo/canales.php?stream=espnpremium", "title": "Liga Profesional Argentina: Barracas Central vs Racing Club", "time": "13:00", "status": "En vivo", "language": "Español", "date": "2026-11-06" },
+                    { "category": "futbol", "link": "https://la18hd.su/vivo/canales.php?stream=dsports", "title": "LaLiga: Sevilla vs Alavés", "time": "15:00", "status": "En vivo", "language": "Español", "date": "2026-11-06" }
+                ];
+                renderAgendaPorPartidos(rawEventsData);
+            } finally {
+                icon.classList.remove("fa-spin");
+            }
+        }
+
+        function renderAgendaPorPartidos(list) {
+            const container = document.getElementById("eventsList");
+            container.innerHTML = "";
+
+            if (list.length === 0) {
+                container.innerHTML = `<div class="p-6 text-center text-gray-500">No hay partidos disponibles en este momento.</div>`;
+                return;
+            }
+
+            const grouped = {};
+            list.forEach(item => {
+                const key = `${item.time} - ${item.title}`;
+                if (!grouped[key]) {
+                    grouped[key] = {
+                        time: item.time,
+                        title: item.title,
+                        category: item.category,
+                        links: []
+                    };
+                }
+                // Agrega todas las opciones disponibles sin exclusiones
+                grouped[key].links.push(item);
+            });
+
+            groupedEventsList = Object.values(grouped);
+            startTickerRotation();
+
+            groupedEventsList.forEach((group, groupIdx) => {
+                const matchCard = document.createElement("div");
+                matchCard.className = "bg-rojaPanel p-3.5 hover:bg-zinc-800/80 transition flex flex-col space-y-2.5 border-b border-zinc-800/60";
+
+                const optionsButtons = group.links.map((linkObj, index) => {
+                    const serverName = getDomainName(linkObj.link);
+                    return `
+                        <button onclick='openPartido(${JSON.stringify(linkObj.title)}, ${JSON.stringify(linkObj.link)}, ${JSON.stringify(linkObj.language)})' 
+                                class="inline-flex items-center gap-1.5 bg-black hover:bg-red-700 text-red-400 hover:text-white border border-zinc-700 px-3 py-1.5 rounded text-xs font-bold transition">
+                            <i class="fa-solid fa-play text-[10px]"></i> Opción ${index + 1} <span class="text-[10px] text-gray-400 font-normal">(${serverName})</span>
+                        </button>
+                    `;
+                }).join("");
+
+                matchCard.innerHTML = `
+                    <div class="flex items-center justify-between cursor-pointer select-none" onclick="toggleOptions(${groupIdx})">
+                        <div class="flex items-center space-x-3">
+                            <span class="font-bold text-red-500 bg-black px-2 py-1 rounded text-xs border border-zinc-800 flex-shrink-0">${group.time}</span>
+                            <div>
+                                <h4 class="font-bold text-gray-100 flex items-center gap-2 text-xs md:text-sm">
+                                    <i class="fa-regular fa-futbol text-red-500 text-xs"></i>
+                                    ${escapeHtml(group.title)}
+                                </h4>
+                                <span class="text-[10px] text-gray-400 capitalize">${escapeHtml(group.category)}</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] bg-red-950 text-red-400 border border-red-800 px-2 py-0.5 rounded font-bold">
+                                ${group.links.length} ${group.links.length === 1 ? 'Opción' : 'Opciones'}
+                            </span>
+                            <i id="icon-${groupIdx}" class="fa-solid fa-chevron-down text-gray-400 text-xs transition-transform duration-200"></i>
+                        </div>
+                    </div>
+
+                    <div id="options-${groupIdx}" class="hidden pt-2 border-t border-zinc-800/80 flex flex-wrap gap-2">
+                        ${optionsButtons}
+                    </div>
+                `;
+                container.appendChild(matchCard);
+            });
+        }
+
+        function startTickerRotation() {
+            if (tickerInterval) clearInterval(tickerInterval);
+            if (groupedEventsList.length === 0) return;
+
+            const tickerElem = document.getElementById("tickerMatch");
+
+            const updateTicker = () => {
+                const match = groupedEventsList[tickerIndex];
+                tickerElem.style.opacity = '0';
+                
+                setTimeout(() => {
+                    tickerElem.innerHTML = `<span class="text-red-400">[${match.time}]</span> ${escapeHtml(match.title)}`;
+                    tickerElem.style.opacity = '1';
+                }, 300);
+
+                tickerIndex = (tickerIndex + 1) % groupedEventsList.length;
+            };
+
+            updateTicker();
+            tickerInterval = setInterval(updateTicker, 4000);
+        }
+
+        function toggleOptions(index) {
+            const optionsDiv = document.getElementById(`options-${index}`);
+            const icon = document.getElementById(`icon-${index}`);
+            optionsDiv.classList.toggle("hidden");
+            icon.classList.toggle("rotate-180");
+        }
+
+        function getDomainName(url) {
+            if (url.includes("espn")) return "ESPN";
+            if (url.includes("disney")) return "Disney+";
+            if (url.includes("golperutv")) return "GolPeru";
+            if (url.includes("tarjetarojita")) return "TarjetaRoja";
+            if (url.includes("dsports")) return "DirecTV";
+            if (url.includes("winplus")) return "WinSports";
+            if (url.includes("tntsports")) return "TNT";
+            return "Opción HD";
+        }
+
+        function openPartido(title, link, language) {
+            document.getElementById("currentTitle").innerText = title;
+            document.getElementById("currentMeta").innerText = `Idioma: ${language} • Servidor: ${getDomainName(link)}`;
+
+            showPlayerView();
+            playStream(link);
+        }
+
+        function playStream(url) {
+            const videoElem = document.getElementById("videoPlayer");
+            const iframeElem = document.getElementById("iframePlayer");
+
+            if (hlsInstance) {
+                hlsInstance.destroy();
+                hlsInstance = null;
+            }
+
+            if (url.includes(".m3u8") || url.endsWith(".mp4")) {
+                iframeElem.classList.add("hidden");
+                iframeElem.src = "";
+                videoElem.classList.remove("hidden");
+                videoElem.muted = true;
+
+                if (url.includes(".m3u8")) {
+                    if (Hls.isSupported()) {
+                        hlsInstance = new Hls();
+                        hlsInstance.loadSource(url);
+                        hlsInstance.attachMedia(videoElem);
+                        hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
+                            videoElem.play().catch(e => console.log("Autoplay HLS prevenido", e));
+                        });
+                    } else if (videoElem.canPlayType("application/vnd.apple.mpegurl")) {
+                        videoElem.src = url;
+                        videoElem.play().catch(e => console.log("Autoplay Safari prevenido", e));
+                    }
+                } else {
+                    videoElem.src = url;
+                    videoElem.play().catch(e => console.log("Autoplay MP4 prevenido", e));
+                }
+            } else {
+                videoElem.classList.add("hidden");
+                videoElem.pause();
+
+                let streamUrl = url;
+                if (!streamUrl.includes("autoplay=")) {
+                    streamUrl += (streamUrl.includes("?") ? "&" : "?") + "autoplay=true&autostart=true&muted=1";
+                }
+
+                iframeElem.classList.remove("hidden");
+                iframeElem.src = streamUrl;
+            }
+        }
+
+        function filterEvents() {
+            const query = document.getElementById("searchInput").value.toLowerCase();
+            const filtered = rawEventsData.filter(item => 
+                item.title.toLowerCase().includes(query) || 
+                item.category.toLowerCase().includes(query)
+            );
+            renderAgendaPorPartidos(filtered);
+        }
+
+        function escapeHtml(str) { 
+            return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); 
+        }
+    </script>
+</body>
+</html>
