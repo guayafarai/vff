@@ -100,18 +100,24 @@
                 </div>
             </div>
 
-            <!-- Video Player Box -->
+            <!-- Video Player Box con Capa Protectora Automática (Click-Shield Definitivo) -->
             <div class="relative bg-black rounded border-2 border-zinc-800 aspect-video w-full flex items-center justify-center overflow-hidden shadow-2xl">
                 <!-- HTML5 / HLS Video Element -->
                 <video id="videoPlayer" controls autoplay muted playsinline class="w-full h-full object-contain hidden"></video>
 
-                <!-- Sandbox con scripts y misma procedencia, PERO omitiendo top-navigation/popups para congelar redirecciones externas -->
+                <!-- Iframe SIN sandbox (para evitar que la web externa lo detecte y muestre el cartel) -->
                 <iframe id="iframePlayer" 
                         class="w-full h-full border-none hidden" 
-                        sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
                         allow="autoplay; encrypted-media; fullscreen; picture-in-picture" 
                         allowfullscreen>
                 </iframe>
+
+                <!-- Capa invisible que captura el 1er clic (publicitario), se autodestruye al hacer clic y te deja interactuar libremente con el reproductor -->
+                <div id="adShield" class="absolute inset-0 z-10 hidden bg-transparent cursor-pointer flex items-center justify-center group" onclick="destroyShield()">
+                    <div class="bg-black/80 text-white text-xs px-4 py-2 rounded-full border border-red-500/50 shadow-lg pointer-events-none group-hover:scale-105 transition-transform flex items-center gap-2">
+                        <i class="fa-solid fa-play text-red-500"></i> Haz clic aquí para iniciar el reproductor (Anti-Publicidad Activo)
+                    </div>
+                </div>
             </div>
 
             <!-- Barra inferior con indicador -->
@@ -119,9 +125,9 @@
                 <span class="text-xs text-green-400 font-bold flex items-center gap-1.5">
                     <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> TRANSMISIÓN EN VIVO
                 </span>
-                <span class="text-[11px] text-gray-400">
-                    <i class="fa-solid fa-shield-halved text-green-500"></i> Bloqueador activo en GitHub Pages
-                </span>
+                <button onclick="resetShield()" class="text-xs text-gray-400 hover:text-white transition flex items-center gap-1">
+                    <i class="fa-solid fa-rotate-left text-red-400"></i> Re-activar filtro anti-clic
+                </button>
             </div>
 
         </section>
@@ -131,21 +137,21 @@
     <!-- Lógica de Control y Manejo de Datos -->
     <script>
         // =========================================================================
-        // SISTEMA DE INTERCEPTACIÓN DE POPUPS Y REDIRECCIONES A NIVEL DE WINDOW
+        // SISTEMA DEFINITIVO ANTI-POPUP Y ANTI-REDIRECCIÓN
         // =========================================================================
         
-        // Block popups via JS
-        window.open = function() {
-            console.warn("Popup bloqueado por el navegador local.");
+        // 1. Bloqueador global de ventanas emergentes (window.open)
+        window.open = function(url, name, specs) {
+            console.warn("Ventana emergente bloqueada por el sistema:", url);
             return null;
         };
 
-        // Prevent top frame redirects when user clicks inside iframe
+        // 2. Prevenir la redirección de la pestaña principal cuando el iframe intenta salir
         window.onbeforeunload = function() {
-            // Cancela el intento del iframe de cambiar la dirección del sitio
+            // Detiene la redirección hacia la publicidad externa
         };
 
-        // Neutralizar target="_blank" en el DOM principal
+        // 3. Neutralizar cualquier enlace con target="_blank"
         document.addEventListener('click', function(event) {
             let target = event.target.closest('a');
             if (target && (target.target === '_blank' || target.getAttribute('target') === '_blank')) {
@@ -344,6 +350,7 @@
         function playStream(url) {
             const videoElem = document.getElementById("videoPlayer");
             const iframeElem = document.getElementById("iframePlayer");
+            const adShield = document.getElementById("adShield");
 
             if (hlsInstance) {
                 hlsInstance.destroy();
@@ -353,6 +360,7 @@
             if (url.includes(".m3u8") || url.endsWith(".mp4")) {
                 iframeElem.classList.add("hidden");
                 iframeElem.src = "";
+                adShield.classList.add("hidden");
                 videoElem.classList.remove("hidden");
                 videoElem.muted = true;
 
@@ -383,7 +391,24 @@
 
                 iframeElem.classList.remove("hidden");
                 iframeElem.src = streamUrl;
+
+                // Activar la capa protectora anti-clic publicitario
+                adShield.classList.remove("hidden");
+                adShield.classList.add("flex");
             }
+        }
+
+        // Destruye la capa cuando el usuario hace el 1er clic (absorbe la trampa de publicidad sin abrir la pestaña)
+        function destroyShield() {
+            const adShield = document.getElementById("adShield");
+            adShield.classList.add("hidden");
+            adShield.classList.remove("flex");
+        }
+
+        function resetShield() {
+            const adShield = document.getElementById("adShield");
+            adShield.classList.remove("hidden");
+            adShield.classList.add("flex");
         }
 
         function filterEvents() {
