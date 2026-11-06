@@ -2,13 +2,16 @@ name: Auto-Scraper m3u8
 
 on:
   schedule:
-    # Se ejecuta de forma automática cada 10 minutos
     - cron: '*/10 * * * *'
-  workflow_dispatch: # Permite ejecutarlo a mano desde la pestaña 'Actions' de GitHub
+  workflow_dispatch:
 
 jobs:
   run-scraper:
     runs-on: ubuntu-latest
+
+    # <<< ESTO ES LO QUE SOLUCIONA EL ERROR 403 >>>
+    permissions:
+      contents: write
 
     steps:
     - name: Descargar repositorio
