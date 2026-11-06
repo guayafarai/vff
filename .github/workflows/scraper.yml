@@ -1,0 +1,36 @@
+name: Auto-Scraper m3u8
+
+on:
+  schedule:
+    # Se ejecuta de forma automática cada 10 minutos
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # Permite ejecutarlo a mano desde la pestaña 'Actions' de GitHub
+
+jobs:
+  run-scraper:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Descargar repositorio
+      uses: actions/checkout@v4
+
+    - name: Configurar Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Instalar dependencias
+      run: |
+        pip install requests
+
+    - name: Ejecutar Script Scraper
+      run: |
+        python scraper.py
+
+    - name: Commit y Push automático de agenda.json
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        git add agenda.json
+        git commit -m "Actualización automática de enlaces m3u8 [skip ci]" || exit 0
+        git push
