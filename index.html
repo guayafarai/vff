@@ -100,18 +100,27 @@
                 </div>
             </div>
 
-            <!-- Video Player Box -->
+            <!-- Video Player Box con Capa Protectora Anti-Publicidad -->
             <div class="relative bg-black rounded border-2 border-zinc-800 aspect-video w-full flex items-center justify-center overflow-hidden shadow-2xl">
                 <!-- HTML5 / HLS Video Element -->
                 <video id="videoPlayer" controls autoplay muted playsinline class="w-full h-full object-contain hidden"></video>
 
-                <!-- Iframe para reproductores externos con Sandbox de Alta Seguridad Anti-Publicidad -->
+                <!-- Iframe SIN sandbox (evita el bloqueo del servidor de video) -->
                 <iframe id="iframePlayer" 
                         class="w-full h-full border-none hidden" 
-                        sandbox="allow-scripts allow-same-origin allow-presentation"
                         allow="autoplay; encrypted-media; fullscreen; picture-in-picture" 
                         allowfullscreen>
                 </iframe>
+
+                <!-- Capa transparente anti-clics/popups sobre el iframe -->
+                <div id="adShield" class="absolute inset-0 z-10 hidden bg-transparent cursor-pointer" onclick="handleShieldClick(event)" title="Haz clic para interactuar"></div>
+            </div>
+
+            <!-- Controles de la capa protectora -->
+            <div id="shieldControl" class="hidden text-center">
+                <button onclick="toggleShield()" id="shieldBtn" class="bg-zinc-800 hover:bg-zinc-700 text-yellow-400 border border-yellow-500/50 text-xs px-3 py-1 rounded font-bold transition">
+                    <i class="fa-solid fa-shield-halved"></i> Escudo Anti-Publicidad Activo (Clic para interactuar con los controles)
+                </button>
             </div>
 
             <!-- Barra inferior con indicador -->
@@ -128,29 +137,22 @@
     <!-- Lógica de Control y Manejo de Datos -->
     <script>
         // =========================================================================
-        // SISTEMA AVANZADO BLOQUEADOR DE POP-UPS Y PUBLICIDAD EXTERNA
+        // SISTEMA DE BLOQUEO DE POP-UPS Y PUBLICIDAD EXTERNA
         // =========================================================================
         
-        // 1. Desactivar window.open y redirigidos por script
-        window.open = function() {
-            console.warn("Ventana emergente/publicidad bloqueada.");
+        // Interceptar apertura de ventanas emergentes (window.open)
+        window.open = function(url, name, specs) {
+            console.warn("Ventana emergente bloqueada automáticamente:", url);
             return null;
         };
 
-        // 2. Prevenir la apertura de nuevas pestañas vía enlaces clickeables o capas transparentes
+        // Interceptar clicks en enlaces _blank
         document.addEventListener('click', function(event) {
             let target = event.target.closest('a');
-            if (target) {
-                if (target.target === '_blank' || target.getAttribute('target') === '_blank') {
-                    target.target = '_self';
-                }
+            if (target && (target.target === '_blank' || target.getAttribute('target') === '_blank')) {
+                target.target = '_self';
             }
         }, true);
-
-        // 3. Prevenir redirecciones no deseadas por touch/click events agresivos de scripts publicitarios
-        window.onbeforeunload = function() {
-            // Previene redirecciones involuntarias de la pestaña principal cuando el iframe intenta forzar un cambio de URL
-        };
 
         // =========================================================================
         // CÓDIGO PRINCIPAL DEL REPRODUCTOR Y AGENDA
@@ -168,6 +170,7 @@
         let hlsInstance = null;
         let tickerIndex = 0;
         let tickerInterval = null;
+        let shieldActive = true;
 
         document.addEventListener("DOMContentLoaded", () => {
             fetchAgendaJson();
@@ -343,6 +346,8 @@
         function playStream(url) {
             const videoElem = document.getElementById("videoPlayer");
             const iframeElem = document.getElementById("iframePlayer");
+            const adShield = document.getElementById("adShield");
+            const shieldControl = document.getElementById("shieldControl");
 
             if (hlsInstance) {
                 hlsInstance.destroy();
@@ -352,6 +357,8 @@
             if (url.includes(".m3u8") || url.endsWith(".mp4")) {
                 iframeElem.classList.add("hidden");
                 iframeElem.src = "";
+                adShield.classList.add("hidden");
+                shieldControl.classList.add("hidden");
                 videoElem.classList.remove("hidden");
                 videoElem.muted = true;
 
@@ -382,7 +389,40 @@
 
                 iframeElem.classList.remove("hidden");
                 iframeElem.src = streamUrl;
+
+                // Activar escudo protector
+                shieldActive = true;
+                adShield.classList.remove("hidden");
+                shieldControl.classList.remove("hidden");
+                updateShieldButton();
             }
+        }
+
+        function toggleShield() {
+            shieldActive = !shieldActive;
+            const adShield = document.getElementById("adShield");
+
+            if (shieldActive) {
+                adShield.classList.remove("hidden");
+            } else {
+                adShield.classList.add("hidden");
+            }
+            updateShieldButton();
+        }
+
+        function updateShieldButton() {
+            const shieldBtn = document.getElementById("shieldBtn");
+            if (shieldActive) {
+                shieldBtn.className = "bg-zinc-800 hover:bg-zinc-700 text-yellow-400 border border-yellow-500/50 text-xs px-3 py-1 rounded font-bold transition";
+                shieldBtn.innerHTML = '<i class="fa-solid fa-shield-halved"></i> Escudo Anti-Publicidad Activo (Clic para interactuar con los controles)';
+            } else {
+                shieldBtn.className = "bg-red-900 hover:bg-red-800 text-white border border-red-500 text-xs px-3 py-1 rounded font-bold transition animate-pulse";
+                shieldBtn.innerHTML = '<i class="fa-solid fa-unlock"></i> Desbloqueado (Haz tus ajustes y vuelve a activar el escudo)';
+            }
+        }
+
+        function handleShieldClick(event) {
+            toggleShield();
         }
 
         function filterEvents() {
