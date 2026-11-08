@@ -182,6 +182,7 @@
       const f = document.createElement('iframe');
       f.src = VERCEL_PROXY_URL + encodeURIComponent(targetUrl);
       f.allow = 'autoplay; encrypted-media; fullscreen; picture-in-picture';
+      f.sandbox = 'allow-scripts allow-same-origin allow-forms allow-presentation';
       f.allowFullscreen = true;
       box.appendChild(f);
     })();
