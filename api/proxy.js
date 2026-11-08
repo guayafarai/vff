@@ -45,29 +45,52 @@ export default async function handler(req, res) {
 
         let html = response.data;
 
-        // Limpieza de publicidad y popups
+        // Limpieza profunda de publicidad y popups conocidos
         html = html.replace(/<script[^>]*src="[^"]*aclib\.js"[^>]*><\/script>/gi, '');
+        html = html.replace(/<script[^>]*src="[^"]*pop[^"]*"[^>]*><\/script>/gi, '');
         html = html.replace(/<div[^>]*id="dontfoid"[^>]*>[\s\S]*?<\/div>/gi, '');
         html = html.replace(/<a[^>]*href="[^"]*ad\/visit\.php[^"]*"[^>]*>[\s\S]*?<\/a>/gi, '');
 
-        html = html.replace('</head>', `
+        // Inyección de script bloqueador de publicidad y popups molestos
+        const adBlockScript = `
             <script>
+                // Bloquear apertura de pestañas/popups desautorizados
+                window.open = function() { return null; };
                 window.aclib = { runPop: function(){}, init: function(){} };
-                window.open = function(){ return null; };
+                
+                // Prevenir redirecciones de ventana principal
+                try {
+                    Object.defineProperty(window, 'onbeforeunload', {
+                        configurable: false,
+                        writeable: false,
+                        value: function() {}
+                    });
+                } catch(e) {}
+
+                // Eliminar elementos publicitarios superpuestos
+                document.addEventListener('DOMContentLoaded', function() {
+                    const cleanAds = () => {
+                        const badElements = document.querySelectorAll('#dontfoid, a[href*="ad/visit"], div[style*="z-index: 2147483647"]');
+                        badElements.forEach(el => el.remove());
+                    };
+                    cleanAds();
+                    setInterval(cleanAds, 500);
+                });
             </script>
             <style>
                 html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
                 iframe, video { width: 100% !important; height: 100% !important; border: 0 !important; }
+                #dontfoid, a[href*="ad/visit.php"] { display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; }
             </style>
-            </head>
-        `);
+        `;
+
+        html = html.replace('</head>', adBlockScript + '</head>');
 
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         return res.status(200).send(html);
 
     } catch (error) {
         console.error('Error en proxy (redirigiendo a targetUrl):', error.message);
-        // Si el servidor de origen rechaza la petición del proxy con 403 o error de red, redirigimos al iframe directo
         return res.redirect(302, targetUrl);
     }
 }
