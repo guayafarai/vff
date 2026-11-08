@@ -22,7 +22,7 @@
     .option-btn { padding: 6px 12px; border: 0; border-radius: 4px; background: #12823e; color: #fff; font-size: 0.8rem; text-decoration: none; font-weight: bold; }
     .option-btn:hover { background: #0d7338; }
 
-    .player { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border: 1px solid #e0e0e0; border-top: 0; }
+    .player { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border: 1px solid #e0e0e0; border-top: 0; overflow: hidden; }
     .player iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
     .state { padding: 25px; text-align: center; color: #666; }
     .actions { display: flex; gap: 10px; margin-top: 14px; }
@@ -62,32 +62,11 @@
       'use strict';
 
       const MAX_LAYERS = 10;
-      // Reemplaza esta URL con el dominio real asignado por Vercel a tu proyecto
       const VERCEL_PROXY_URL = '/api/proxy?url=';
 
-      // --- FILTRADO ACTIVO EN EL CLIENTE ---
-      const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-          mutation.addedNodes.forEach((node) => {
-            if (node.nodeType === 1) {
-              if (node.id === 'dontfoid' || (node.tagName === 'A' && node.href && node.href.includes('ad/visit.php'))) {
-                node.remove();
-              }
-              if (node.tagName === 'SCRIPT' && node.src && node.src.includes('aclib.js')) {
-                node.remove();
-              }
-            }
-          });
-        });
-      });
-      observer.observe(document.documentElement, { childList: true, subtree: true });
+      // Interceptor global para bloquear aperturas involuntarias de popups desde window
+      window.open = function() { return null; };
 
-      setInterval(() => {
-        const dontfoid = document.getElementById('dontfoid');
-        if (dontfoid) dontfoid.remove();
-      }, 300);
-
-      // --- DECODIFICACIÓN Y CARGA ---
       function b64decode(str) {
         try {
           let s = str.replace(/ /g, '+').replace(/-/g, '+').replace(/_/g, '/');
@@ -182,7 +161,6 @@
       const f = document.createElement('iframe');
       f.src = VERCEL_PROXY_URL + encodeURIComponent(targetUrl);
       f.allow = 'autoplay; encrypted-media; fullscreen; picture-in-picture';
-      // f.sandbox removed to avoid anti-sandbox detection
       f.allowFullscreen = true;
       box.appendChild(f);
     })();

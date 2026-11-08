@@ -298,13 +298,11 @@
       try {
         let json;
         try {
-          // Intentar obtener a través del Proxy local
           const res = await fetch(API_URL, { cache: 'no-store' });
           if (!res.ok) throw new Error('Proxy HTTP ' + res.status);
           json = await res.json();
         } catch (eProxy) {
           console.warn('Falló el proxy, intentando fetch directo:', eProxy);
-          // Fallback en caso de fetch directo
           const resDirect = await fetch(TARGET_JSON_URL, { cache: 'no-store' });
           if (!resDirect.ok) throw new Error('HTTP ' + resDirect.status);
           json = await resDirect.json();
