@@ -21,23 +21,26 @@ export default async function handler(req, res) {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Referer': 'https://la18hd.su/'
             },
-            responseType: 'text',
+            responseType: targetUrl.endsWith('.json') ? 'json' : 'text',
             timeout: 8000
         });
 
+        if (targetUrl.endsWith('.json') || typeof response.data === 'object') {
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            return res.status(200).json(response.data);
+        }
+
         let html = response.data;
 
-        // 1. Remoción de scripts e identificadores conocidos
+        // Remoción de scripts e identificadores conocidos
         html = html.replace(/<script[^>]*src="[^"]*aclib\.js"[^>]*><\/script>/gi, '');
         html = html.replace(/<div[^>]*id="dontfoid"[^>]*>[\s\S]*?<\/div>/gi, '');
         html = html.replace(/<a[^>]*href="[^"]*ad\/visit\.php[^"]*"[^>]*>[\s\S]*?<\/a>/gi, '');
 
-        // 2. Anular el objeto global de publicidad e inyectar estilos para ajustar el reproductor
         html = html.replace('</head>', `
             <script>
-                // Anular objeto aclib por si el script se carga por otros medios dinámicos
                 window.aclib = { runPop: function(){}, init: function(){} };
-                window.open = function(){ return null; }; // Bloquear aperturas de nuevas pestañas desautorizadas
+                window.open = function(){ return null; };
             </script>
             <style>
                 html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
@@ -51,7 +54,6 @@ export default async function handler(req, res) {
 
     } catch (error) {
         console.error('Error en el proxy:', error.message);
-        // Redirección de respaldo si el proxy en Vercel falla o se agota el tiempo
-        return res.redirect(302, targetUrl);
+        return res.status(500).json({ error: 'Error en proxy: ' + error.message });
     }
 }
