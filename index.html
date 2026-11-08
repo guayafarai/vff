@@ -46,12 +46,7 @@
   </div>
 
   <script>
-    const API_URL = 'https://agenda18.com/agenda.json';
-    const API_ORIGIN = 'https://agenda18.com';
-    const FEED_OFFSET = '-05:00';
-
-    const FUENTES = {};
-    const FUENTES_API_URL = '';
+    const API_URL = 'https://streamx723.sbs/json/agenda888.json';
     const PLAYER_PATH = 'player.html';
     const CAPAS = 2;
 
@@ -77,35 +72,10 @@
     function obtenerBase64Limpio(valor) {
       const b64Extraido = extraerBase64DeUrl(valor);
       if (b64Extraido) return b64Extraido;
-      if (!/^https:\/\//i.test(valor)) return encodeURIComponent(valor);
+      if (!/^https?:\/\//i.test(valor)) return encodeURIComponent(valor);
       let v = valor;
       for (let i = 0; i < CAPAS; i++) v = b64encode(v);
       return v;
-    }
-
-    function enlaceCodificado(valor) {
-      return PLAYER_PATH + '?r=' + obtenerBase64Limpio(valor);
-    }
-
-    function valorValido(u) {
-      return typeof u === 'string' && u.length < 4000;
-    }
-
-    async function cargarFuentes() {
-      if (!FUENTES_API_URL) return;
-      try {
-        const res = await fetch(FUENTES_API_URL, { cache: 'no-store' });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const data = await res.json();
-        const pares = Array.isArray(data)
-          ? data.map(x => [x.canal, x.url])
-          : Object.entries(data || {});
-        for (const [canal, url] of pares) {
-          if (canal && valorValido(url)) FUENTES[norm(canal)] = url;
-        }
-      } catch (err) {
-        console.error('No se pudieron cargar las fuentes:', err);
-      }
     }
 
     function emojiIcon(e) {
@@ -125,13 +95,7 @@
       'belgica':'be','turquia':'tr','estados unidos':'us','eeuu':'us','usa':'us','ee.uu.':'us',
       'arabia saudita':'sa','arabia saudi':'sa','japon':'jp','china':'cn','grecia':'gr','rusia':'ru',
       'ucrania':'ua','suiza':'ch','austria':'at','croacia':'hr','serbia':'rs','polonia':'pl',
-      'dinamarca':'dk','suecia':'se','noruega':'no','costa rica':'cr','panama':'pa',
-      'honduras':'hn','guatemala':'gt','el salvador':'sv','jamaica':'jm','canada':'ca',
-      'australia':'au','corea del sur':'kr','egipto':'eg','marruecos':'ma','sudafrica':'za',
-      'qatar':'qa','catar':'qa','emiratos arabes':'ae','republica checa':'cz','rumania':'ro',
-      'hungria':'hu','bulgaria':'bg','irlanda':'ie','israel':'il','cuba':'cu',
-      'republica dominicana':'do','nicaragua':'ni','haiti':'ht','trinidad y tobago':'tt',
-      'finlandia':'fi','eslovaquia':'sk','eslovenia':'si','chipre':'cy','islandia':'is'
+      'dinamarca':'dk','suecia':'se','noruega':'no','costa rica':'cr','panama':'pa'
     };
 
     const LIGAS = [
@@ -164,8 +128,6 @@
       { match: 'liga profesional',  flag: 'ar', tsdb: 4406 },
       { match: 'brasileirao',       flag: 'br', tsdb: 4351 },
       { match: 'mls',               flag: 'us', tsdb: 4346 },
-      { match: 'liga betplay',      flag: 'co' },
-      { match: 'liga 1',            flag: 'pe' },
       { match: 'eredivisie',        flag: 'nl' },
       { match: 'primeira liga',     flag: 'pt' }
     ];
@@ -195,57 +157,65 @@
 
     function flagUrl(code) { return code ? `https://flagcdn.com/w40/${code}.png` : ''; }
 
-    function normalizar(item) {
-      const a = item.attributes || {};
-      const desc = a.diary_description || '';
-      const i = desc.indexOf(': ');
-      const torneo = i > -1 ? desc.slice(0, i) : '';
-      const partido = i > -1 ? desc.slice(i + 2) : desc;
+    function extraerNombreCanal(link) {
+      try {
+        const u = new URL(link);
+        const ch = u.searchParams.get('channel');
+        if (ch) return ch.toUpperCase();
+      } catch {}
+      return 'Opción';
+    }
 
-      const inicio = new Date(`${a.date_diary}T${a.diary_hour}${FEED_OFFSET}`);
+    function procesarItems(data) {
+      if (!Array.isArray(data)) return [];
+      const mapa = new Map();
 
-      const paisNombre = a.country?.data?.attributes?.name || '';
-      const imgApi = a.country?.data?.attributes?.image?.data?.attributes?.url;
-      const liga = ligaDe(torneo);
-      const code = PAISES[norm(paisNombre)] || liga?.flag || '';
+      for (const item of data) {
+        const title = item.title || 'Evento';
+        const category = item.category || 'Deportes';
+        const time = item.time || '00:00';
+        const dateStr = item.date || '';
+        const status = item.status || '';
+        const link = item.link || '';
 
-      let apiFlag = '';
-      if (imgApi) apiFlag = /^https?:/i.test(imgApi) ? imgApi : API_ORIGIN + imgApi;
+        let torneo = category;
+        let partido = title;
 
-      const embedsData = a.embeds?.data || [];
-      const canales = [];
-      const enlacesDirectos = [];
-
-      for (const e of embedsData) {
-        const attr = e.attributes || {};
-        const nombreCanal = (attr.embed_name || '').trim();
-        const iframePath = (attr.embed_iframe || '').trim();
-        const idioma = (attr.idioma || '').trim();
-
-        if (nombreCanal && !/movil/i.test(nombreCanal) && !/op2/i.test(nombreCanal)) {
-          canales.push(nombreCanal);
+        if (title.includes(':')) {
+          const partes = title.split(':');
+          torneo = partes[0].trim();
+          partido = partes.slice(1).join(':').trim();
         }
 
-        if (iframePath) {
-          const urlFinal = /^https?:\/\//i.test(iframePath) ? iframePath : API_ORIGIN + iframePath;
-          enlacesDirectos.push({
-            url: urlFinal,
-            nombre: nombreCanal,
-            idioma: idioma,
-            envivo: true
+        const key = `${dateStr}_${time}_${torneo}_${partido}`;
+
+        if (!mapa.has(key)) {
+          const liga = ligaDe(torneo);
+          const code = liga?.flag || '';
+          mapa.set(key, {
+            horaTexto: time,
+            fechaTexto: dateStr,
+            torneo,
+            partido,
+            categoria: category,
+            status,
+            tsdb: liga?.tsdb || null,
+            emoji: liga?.emoji || '',
+            banderas: [flagUrl(code)].filter(Boolean),
+            enlaces: []
           });
         }
+
+        const elem = mapa.get(key);
+        const nombreCanal = extraerNombreCanal(link);
+        elem.enlaces.push({
+          url: link,
+          nombre: nombreCanal + (elem.enlaces.length > 0 ? ` (${elem.enlaces.length + 1})` : ''),
+          status: status
+        });
       }
 
-      return {
-        inicio, torneo, partido,
-        pais: paisNombre,
-        tsdb: liga?.tsdb || null,
-        emoji: liga?.emoji || '',
-        banderas: [flagUrl(code), apiFlag].filter(Boolean),
-        canales: [...new Set(canales)],
-        enlaces: enlacesDirectos
-      };
+      return Array.from(mapa.values());
     }
 
     function fuentes(m) {
@@ -257,10 +227,6 @@
       let k = 0;
       img.onerror = () => { if (++k < urls.length) img.src = urls[k]; else img.onerror = null; };
       img.src = urls[0];
-    }
-
-    function hora(d) {
-      return d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', hour12: false });
     }
 
     let partidos = [];
@@ -278,12 +244,12 @@
 
         const t = document.createElement('div');
         t.className = 'match-time';
-        t.textContent = hora(m.inicio);
+        t.textContent = m.horaTexto;
 
         const ic = document.createElement('div');
         ic.className = 'match-icon';
         const img = document.createElement('img');
-        img.alt = m.torneo || m.pais; img.loading = 'lazy';
+        img.alt = m.torneo; img.loading = 'lazy';
         setImg(img, fuentes(m));
         ic.appendChild(img);
 
@@ -295,24 +261,17 @@
         tn.textContent = m.torneo ? m.torneo + ': ' : '';
         titulo.append(tn, document.createTextNode(m.partido));
         info.appendChild(titulo);
-        if (m.canales.length) {
-          const c = document.createElement('span');
-          c.className = 'channels';
-          c.textContent = 'Canales: ' + m.canales.join(' · ');
-          info.appendChild(c);
-        }
 
         row.append(t, ic, info);
-        if (m.enlaces.some(e => e.envivo)) {
+        if (m.status === 'En vivo' || m.enlaces.some(e => e.status === 'En vivo')) {
           const lv = document.createElement('span');
           lv.className = 'live';
           lv.textContent = 'EN VIVO';
           titulo.appendChild(lv);
         }
 
-        // Construir la lista completa de opciones con sus nombres y Base64 limpios
         const todasLasOpciones = m.enlaces.map((e, idx) => ({
-          nombre: e.nombre || (m.enlaces.length > 1 ? 'Opción ' + (idx + 1) : 'Ver'),
+          nombre: e.nombre || 'Opción ' + (idx + 1),
           r: obtenerBase64Limpio(e.url)
         }));
 
@@ -326,8 +285,8 @@
           b.href = PLAYER_PATH + '?r=' + todasLasOpciones[idx].r
             + '&t=' + encodeURIComponent(m.torneo)
             + '&p=' + encodeURIComponent(m.partido)
-            + '&h=' + encodeURIComponent(hora(m.inicio))
-            + '&c=' + encodeURIComponent(m.canales.join(' · '))
+            + '&h=' + encodeURIComponent(m.horaTexto)
+            + '&c=' + encodeURIComponent(e.nombre)
             + '&opts=' + encodeURIComponent(JSON.stringify(todasLasOpciones));
 
           b.textContent = todasLasOpciones[idx].nombre;
@@ -342,7 +301,7 @@
     function filtrar() {
       const q = norm(document.getElementById('search').value);
       render(!q ? partidos : partidos.filter(m =>
-        norm(m.partido + ' ' + m.torneo + ' ' + m.pais).includes(q)));
+        norm(m.partido + ' ' + m.torneo + ' ' + m.categoria).includes(q)));
     }
 
     async function cargar() {
@@ -350,16 +309,12 @@
         const res = await fetch(API_URL, { cache: 'no-store' });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const json = await res.json();
-        await cargarFuentes();
 
-        partidos = (json.data || []).map(normalizar)
-          .filter(m => !isNaN(m.inicio))
-          .sort((a, b) => a.inicio - b.inicio);
+        partidos = procesarItems(json);
 
-        if (partidos.length) {
+        if (partidos.length && partidos[0].fechaTexto) {
           document.getElementById('agenda-date').textContent =
-            'Agenda de Partidos · ' + partidos[0].inicio.toLocaleDateString('es',
-              { weekday: 'long', day: 'numeric', month: 'long' });
+            'Agenda de Partidos · ' + partidos[0].fechaTexto;
         }
         filtrar();
 
@@ -372,7 +327,7 @@
       } catch (err) {
         console.error(err);
         document.getElementById('matches-list').innerHTML =
-          '<div class="state">No se pudo cargar la agenda (posible bloqueo CORS o servidor caído).</div>';
+          '<div class="state">No se pudo cargar la agenda.</div>';
       }
     }
 
