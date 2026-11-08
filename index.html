@@ -46,7 +46,8 @@
   </div>
 
   <script>
-    const API_URL = 'https://streamx723.sbs/json/agenda888.json';
+    const TARGET_JSON_URL = 'https://streamx723.sbs/json/agenda888.json';
+    const API_URL = '/api/proxy?url=' + encodeURIComponent(TARGET_JSON_URL);
     const PLAYER_PATH = 'player.html';
     const CAPAS = 2;
 
@@ -86,17 +87,6 @@
 
     const norm = s => (s || '').toLowerCase()
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-
-    const PAISES = {
-      'argentina':'ar','brasil':'br','mexico':'mx','colombia':'co','peru':'pe','chile':'cl',
-      'uruguay':'uy','paraguay':'py','ecuador':'ec','bolivia':'bo','venezuela':'ve',
-      'espana':'es','inglaterra':'gb-eng','escocia':'gb-sct','gales':'gb-wls','italia':'it',
-      'alemania':'de','francia':'fr','portugal':'pt','paises bajos':'nl','holanda':'nl',
-      'belgica':'be','turquia':'tr','estados unidos':'us','eeuu':'us','usa':'us','ee.uu.':'us',
-      'arabia saudita':'sa','arabia saudi':'sa','japon':'jp','china':'cn','grecia':'gr','rusia':'ru',
-      'ucrania':'ua','suiza':'ch','austria':'at','croacia':'hr','serbia':'rs','polonia':'pl',
-      'dinamarca':'dk','suecia':'se','noruega':'no','costa rica':'cr','panama':'pa'
-    };
 
     const LIGAS = [
       { match: 'formula 1',         tsdb: 4370, emoji: '🏎️' },
@@ -306,9 +296,19 @@
 
     async function cargar() {
       try {
-        const res = await fetch(API_URL, { cache: 'no-store' });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const json = await res.json();
+        let json;
+        try {
+          // Intentar obtener a través del Proxy local
+          const res = await fetch(API_URL, { cache: 'no-store' });
+          if (!res.ok) throw new Error('Proxy HTTP ' + res.status);
+          json = await res.json();
+        } catch (eProxy) {
+          console.warn('Falló el proxy, intentando fetch directo:', eProxy);
+          // Fallback en caso de fetch directo
+          const resDirect = await fetch(TARGET_JSON_URL, { cache: 'no-store' });
+          if (!resDirect.ok) throw new Error('HTTP ' + resDirect.status);
+          json = await resDirect.json();
+        }
 
         partidos = procesarItems(json);
 
