@@ -37,7 +37,8 @@ export default async function handler(req, res) {
         const response = await axios.get(targetUrl, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Referer': 'https://streamx723.sbs/'
             },
             responseType: 'text',
             timeout: 10000
@@ -45,52 +46,72 @@ export default async function handler(req, res) {
 
         let html = response.data;
 
-        // Limpieza profunda de publicidad y popups conocidos
+        // 1. Eliminar scripts de publicidad agresiva conocidos (aclib, popups, redirecciones)
         html = html.replace(/<script[^>]*src="[^"]*aclib\.js"[^>]*><\/script>/gi, '');
         html = html.replace(/<script[^>]*src="[^"]*pop[^"]*"[^>]*><\/script>/gi, '');
+        html = html.replace(/<script[^>]*src="[^"]*ad[^"]*"[^>]*><\/script>/gi, '');
         html = html.replace(/<div[^>]*id="dontfoid"[^>]*>[\s\S]*?<\/div>/gi, '');
         html = html.replace(/<a[^>]*href="[^"]*ad\/visit\.php[^"]*"[^>]*>[\s\S]*?<\/a>/gi, '');
 
-        // Inyección de script bloqueador de publicidad y popups molestos
-        const adBlockScript = `
+        // 2. Inyección de script anulador de ventanas emergentes y clics publicitarios
+        const adBlockInjection = `
             <script>
-                // Bloquear apertura de pestañas/popups desautorizados
-                window.open = function() { return null; };
-                window.aclib = { runPop: function(){}, init: function(){} };
-                
-                // Prevenir redirecciones de ventana principal
-                try {
-                    Object.defineProperty(window, 'onbeforeunload', {
-                        configurable: false,
-                        writeable: false,
-                        value: function() {}
-                    });
-                } catch(e) {}
+                (function() {
+                    // Bloquear aperturas de popups y nuevas pestañas
+                    window.open = function() { return null; };
+                    window.aclib = { runPop: function(){}, init: function(){} };
 
-                // Eliminar elementos publicitarios superpuestos
-                document.addEventListener('DOMContentLoaded', function() {
-                    const cleanAds = () => {
-                        const badElements = document.querySelectorAll('#dontfoid, a[href*="ad/visit"], div[style*="z-index: 2147483647"]');
-                        badElements.forEach(el => el.remove());
-                    };
-                    cleanAds();
-                    setInterval(cleanAds, 500);
-                });
+                    // Neutralizar funciones de redirección masivas
+                    const noop = function() {};
+                    window.popunder = noop;
+                    window.openPop = noop;
+
+                    // Desactivar clics en enlaces publicitarios o elementos transparentes
+                    document.addEventListener('click', function(e) {
+                        const target = e.target;
+                        if (target) {
+                            if (target.tagName === 'A' && target.href && (target.href.includes('ad/') || target.href.includes('visit.php') || target.target === '_blank')) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                return false;
+                            }
+                            if (target.id === 'dontfoid' || (target.style && target.style.zIndex > 1000 && target.tagName !== 'VIDEO')) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                target.remove();
+                                return false;
+                            }
+                        }
+                    }, true);
+
+                    // Limpiador recurrente en el DOM
+                    setInterval(function() {
+                        const bads = document.querySelectorAll('#dontfoid, a[href*="ad/visit"], a[target="_blank"]');
+                        bads.forEach(function(el) {
+                            if (el.tagName === 'A' && !el.href.includes('streamx')) {
+                                el.removeAttribute('target');
+                                el.onclick = function(ev) { ev.preventDefault(); return false; };
+                            } else if (el.id === 'dontfoid') {
+                                el.remove();
+                            }
+                        });
+                    }, 400);
+                })();
             </script>
             <style>
+                #dontfoid, a[href*="ad/visit.php"] { display: none !important; opacity: 0 !important; pointer-events: none !important; }
                 html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
                 iframe, video { width: 100% !important; height: 100% !important; border: 0 !important; }
-                #dontfoid, a[href*="ad/visit.php"] { display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; }
             </style>
         `;
 
-        html = html.replace('</head>', adBlockScript + '</head>');
+        html = html.replace('</head>', adBlockInjection + '</head>');
 
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         return res.status(200).send(html);
 
     } catch (error) {
-        console.error('Error en proxy (redirigiendo a targetUrl):', error.message);
+        console.error('Error en proxy:', error.message);
         return res.redirect(302, targetUrl);
     }
 }
