@@ -17,12 +17,13 @@
     .tournament { font-weight: bold; }
     .channels { display: block; font-size: .8rem; color: #777; margin-top: 2px; }
     
+    /* Contenedor de otras opciones */
     .other-options { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 15px; background: #f9f9f9; border: 1px solid #e0e0e0; border-top: 0; align-items: center; }
     .other-options span { font-size: 0.85rem; font-weight: bold; color: #555; margin-right: 5px; }
     .option-btn { padding: 6px 12px; border: 0; border-radius: 4px; background: #12823e; color: #fff; font-size: 0.8rem; text-decoration: none; font-weight: bold; }
     .option-btn:hover { background: #0d7338; }
 
-    .player { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border: 1px solid #e0e0e0; border-top: 0; overflow: hidden; }
+    .player { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border: 1px solid #e0e0e0; border-top: 0; }
     .player iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
     .state { padding: 25px; text-align: center; color: #666; }
     .actions { display: flex; gap: 10px; margin-top: 14px; }
@@ -48,6 +49,7 @@
       </div>
     </div>
 
+    <!-- Contenedor dinámico para otras opciones -->
     <div id="other-options-container"></div>
 
     <div class="player" id="player"></div>
@@ -61,11 +63,8 @@
     (function () {
       'use strict';
 
+      const ALLOWED_HOSTS = [];
       const MAX_LAYERS = 10;
-      const VERCEL_PROXY_URL = '/api/proxy?url=';
-
-      // Interceptor global para bloquear aperturas involuntarias de popups desde window
-      window.open = function() { return null; };
 
       function b64decode(str) {
         try {
@@ -88,6 +87,11 @@
         return /^https?:\/\//i.test(cur) ? cur : null;
       }
 
+      function hostAllowed(u) {
+        if (!ALLOWED_HOSTS.length) return true;
+        return ALLOWED_HOSTS.some(h => u.hostname === h || u.hostname.endsWith('.' + h));
+      }
+
       const q = new URLSearchParams(location.search);
       const torneo    = q.get('t') || '';
       const partido   = q.get('p') || '';
@@ -107,9 +111,11 @@
         document.getElementById('match-box').style.display = 'none';
       }
 
+      // Renderizar las demás opciones disponibles de manera persistente
       if (optsParam) {
         try {
           const todasLasOpciones = JSON.parse(optsParam);
+          // Filtrar omitiendo la opción que se está reproduciendo actualmente
           const otras = todasLasOpciones.filter(opt => opt.r !== currentR);
 
           if (otras.length > 0) {
@@ -155,13 +161,22 @@
 
       if (!currentR) return error('Falta el enlace del reproductor (parámetro r).');
 
-      const targetUrl = resolve(currentR);
-      if (!targetUrl) return error('No se pudo decodificar el enlace.');
+      const url = resolve(currentR);
+      if (!url) return error('No se pudo decodificar el enlace.');
+
+      let u;
+      try { u = new URL(url); } catch (e) { return error('El enlace decodificado no es una URL válida.'); }
+      if (u.protocol !== 'https:' && !(u.protocol === 'http:' && location.protocol === 'http:')) {
+        return error('El enlace debe ser https:// (el navegador bloquea http dentro de una página https).');
+      }
+      if (!hostAllowed(u)) return error('Dominio no permitido: ' + u.hostname + '.');
 
       const f = document.createElement('iframe');
-      f.src = VERCEL_PROXY_URL + encodeURIComponent(targetUrl);
+      f.src = u.href;
       f.allow = 'autoplay; encrypted-media; fullscreen; picture-in-picture';
       f.allowFullscreen = true;
+      f.setAttribute('referrerpolicy', 'no-referrer');
+      f.setAttribute('scrolling', 'no');
       box.appendChild(f);
     })();
   </script>
