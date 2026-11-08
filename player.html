@@ -62,9 +62,32 @@
       'use strict';
 
       const MAX_LAYERS = 10;
-      // ⚠️ REEMPLAZA ESTA URL CON LA DE TU PROYECTO DESPLEGADO EN VERCEL
+      // Reemplaza esta URL con el dominio real asignado por Vercel a tu proyecto
       const VERCEL_PROXY_URL = 'https://vff-eosin.vercel.app/api/proxy?url=';
 
+      // --- FILTRADO ACTIVO EN EL CLIENTE ---
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          mutation.addedNodes.forEach((node) => {
+            if (node.nodeType === 1) {
+              if (node.id === 'dontfoid' || (node.tagName === 'A' && node.href && node.href.includes('ad/visit.php'))) {
+                node.remove();
+              }
+              if (node.tagName === 'SCRIPT' && node.src && node.src.includes('aclib.js')) {
+                node.remove();
+              }
+            }
+          });
+        });
+      });
+      observer.observe(document.documentElement, { childList: true, subtree: true });
+
+      setInterval(() => {
+        const dontfoid = document.getElementById('dontfoid');
+        if (dontfoid) dontfoid.remove();
+      }, 300);
+
+      // --- DECODIFICACIÓN Y CARGA ---
       function b64decode(str) {
         try {
           let s = str.replace(/ /g, '+').replace(/-/g, '+').replace(/_/g, '/');
@@ -156,7 +179,6 @@
       const targetUrl = resolve(currentR);
       if (!targetUrl) return error('No se pudo decodificar el enlace.');
 
-      // Montar el iframe cargando a través de TU proxy en Vercel
       const f = document.createElement('iframe');
       f.src = VERCEL_PROXY_URL + encodeURIComponent(targetUrl);
       f.allow = 'autoplay; encrypted-media; fullscreen; picture-in-picture';
