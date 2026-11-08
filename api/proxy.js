@@ -15,24 +15,30 @@ export default async function handler(req, res) {
     }
 
     try {
-        // Hacemos la petición simulando un navegador real
+        // Petición al servidor original simulando un navegador real
         const response = await axios.get(targetUrl, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Referer': 'https://la18hd.su/'
             },
             responseType: 'text',
-            timeout: 8000 // Evitar que se quede colgado si el servidor tarda
+            timeout: 8000
         });
 
         let html = response.data;
 
-        // Limpieza segura de scripts publicitarios y capas trampa
+        // 1. Remoción de scripts e identificadores conocidos
         html = html.replace(/<script[^>]*src="[^"]*aclib\.js"[^>]*><\/script>/gi, '');
         html = html.replace(/<div[^>]*id="dontfoid"[^>]*>[\s\S]*?<\/div>/gi, '');
+        html = html.replace(/<a[^>]*href="[^"]*ad\/visit\.php[^"]*"[^>]*>[\s\S]*?<\/a>/gi, '');
 
-        // Inyectar estilos para ajustar el reproductor al 100%
+        // 2. Anular el objeto global de publicidad e inyectar estilos para ajustar el reproductor
         html = html.replace('</head>', `
+            <script>
+                // Anular objeto aclib por si el script se carga por otros medios dinámicos
+                window.aclib = { runPop: function(){}, init: function(){} };
+                window.open = function(){ return null; }; // Bloquear aperturas de nuevas pestañas desautorizadas
+            </script>
             <style>
                 html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
                 iframe, video { width: 100% !important; height: 100% !important; border: 0 !important; }
@@ -44,8 +50,8 @@ export default async function handler(req, res) {
         return res.status(200).send(html);
 
     } catch (error) {
-        console.error('Error detallado en el proxy:', error.message);
-        // Si falla el proxy, redirigimos de emergencia al sitio original para que al menos cargue el video
+        console.error('Error en el proxy:', error.message);
+        // Redirección de respaldo si el proxy en Vercel falla o se agota el tiempo
         return res.redirect(302, targetUrl);
     }
 }
