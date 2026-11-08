@@ -15,17 +15,23 @@ export default async function handler(req, res) {
     }
 
     try {
+        let refererHeader = 'https://streamx723.sbs/';
+        if (targetUrl.includes('agenda888.json')) {
+            refererHeader = 'https://streamx723.sbs/';
+        }
+
         // Petición al servidor original simulando un navegador real
         const response = await axios.get(targetUrl, {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Referer': 'https://la18hd.su/'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                'Referer': refererHeader,
+                'Origin': 'https://streamx723.sbs'
             },
-            responseType: targetUrl.endsWith('.json') ? 'json' : 'text',
-            timeout: 8000
+            responseType: (targetUrl.endsWith('.json') || targetUrl.includes('json')) ? 'json' : 'text',
+            timeout: 10000
         });
 
-        if (targetUrl.endsWith('.json') || typeof response.data === 'object') {
+        if (targetUrl.endsWith('.json') || targetUrl.includes('json') || typeof response.data === 'object') {
             res.setHeader('Content-Type', 'application/json; charset=utf-8');
             return res.status(200).json(response.data);
         }
