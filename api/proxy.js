@@ -1,7 +1,6 @@
 const axios = require('axios');
 
 export default async function handler(req, res) {
-    // Configurar cabeceras CORS para permitir inserción en tu web
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -11,11 +10,13 @@ export default async function handler(req, res) {
     }
 
     try {
-        const streamName = req.query.stream || 'tntsportschile';
-        const targetUrl = `https://la18hd.su/vivo/canales.php?stream=${streamName}`;
+        const streamUrl = req.query.url;
+        if (!streamUrl) {
+            return res.status(400).send('Falta el parámetro url.');
+        }
 
-        // Petición al sitio original simulando un navegador
-        const response = await axios.get(targetUrl, {
+        // Hacemos la petición al sitio original simulando un navegador
+        const response = await axios.get(streamUrl, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Referer': 'https://la18hd.su/'
@@ -34,21 +35,20 @@ export default async function handler(req, res) {
         // 3. Eliminar enlace trampa oculto
         html = html.replace(/<a[^>]*href="[^"]*ad\/visit\.php[^"]*"[^>]*>[\s\S]*?<\/a>/gi, '');
 
-        // 4. Inyectar CSS para adaptar el reproductor al 100% sin barras de desplazamiento
+        // 4. Inyectar CSS para adaptar el reproductor y ocultar scrollbars molestos
         html = html.replace('</head>', `
             <style>
                 html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
-                iframe, video { width: 100% !important; height: 100% !important; }
+                iframe, video { width: 100% !important; height: 100% !important; border: 0 !important; }
             </style>
             </head>
         `);
 
-        // Enviar el HTML limpio a Vercel
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         return res.status(200).send(html);
 
     } catch (error) {
-        console.error('Error al obtener el stream:', error.message);
-        return res.status(500).send('Error al cargar el contenido del canal.');
+        console.error('Error en el proxy:', error.message);
+        return res.status(500).send('Error al cargar la transmisión limpia.');
     }
 }
