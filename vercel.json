@@ -1,5 +1,0 @@
-{
-  "rewrites": [
-    { "source": "/ver-canal", "destination": "/api/proxy" }
-  ]
-}
