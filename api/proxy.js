@@ -9,33 +9,29 @@ export default async function handler(req, res) {
         return res.status(200).end();
     }
 
-    try {
-        const streamUrl = req.query.url;
-        if (!streamUrl) {
-            return res.status(400).send('Falta el parámetro url.');
-        }
+    const targetUrl = req.query.url;
+    if (!targetUrl) {
+        return res.status(400).send('Falta el parámetro url.');
+    }
 
-        // Hacemos la petición al sitio original simulando un navegador
-        const response = await axios.get(streamUrl, {
+    try {
+        // Hacemos la petición simulando un navegador real
+        const response = await axios.get(targetUrl, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Referer': 'https://la18hd.su/'
-            }
+            },
+            responseType: 'text',
+            timeout: 8000 // Evitar que se quede colgado si el servidor tarda
         });
 
         let html = response.data;
 
-        // --- FILTRADO Y REMOCIÓN DE PUBLICIDAD ---
-        // 1. Eliminar script aclib.js
+        // Limpieza segura de scripts publicitarios y capas trampa
         html = html.replace(/<script[^>]*src="[^"]*aclib\.js"[^>]*><\/script>/gi, '');
-        
-        // 2. Eliminar la capa invisible trampa (dontfoid)
         html = html.replace(/<div[^>]*id="dontfoid"[^>]*>[\s\S]*?<\/div>/gi, '');
 
-        // 3. Eliminar enlace trampa oculto
-        html = html.replace(/<a[^>]*href="[^"]*ad\/visit\.php[^"]*"[^>]*>[\s\S]*?<\/a>/gi, '');
-
-        // 4. Inyectar CSS para adaptar el reproductor y ocultar scrollbars molestos
+        // Inyectar estilos para ajustar el reproductor al 100%
         html = html.replace('</head>', `
             <style>
                 html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
@@ -48,7 +44,8 @@ export default async function handler(req, res) {
         return res.status(200).send(html);
 
     } catch (error) {
-        console.error('Error en el proxy:', error.message);
-        return res.status(500).send('Error al cargar la transmisión limpia.');
+        console.error('Error detallado en el proxy:', error.message);
+        // Si falla el proxy, redirigimos de emergencia al sitio original para que al menos cargue el video
+        return res.redirect(302, targetUrl);
     }
 }
