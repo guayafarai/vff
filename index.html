@@ -3,18 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Agenda de Fútbol</title>
+  <title>Agenda Deportiva</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="header">
-    <h1>Agenda de Fútbol</h1>
-    <p>Horarios, partidos y canales de TV donde se transmiten.</p>
+    <h1>Agenda Deportiva</h1>
+    <p>Fútbol, NBA y MLB: horarios, partidos y canales de TV donde se transmiten.</p>
   </div>
 
   <div class="contenedor">
     <div class="toolbar">
       <input id="fecha" type="date" aria-label="Fecha">
+      <select id="deporte" aria-label="Deporte">
+        <option value="">Todos los deportes</option>
+        <option value="futbol">Fútbol</option>
+        <option value="nba">NBA</option>
+        <option value="mlb">MLB</option>
+      </select>
       <select id="pais" aria-label="País del canal"><option value="">Todos los países</option></select>
       <input id="buscar" type="search" placeholder="Buscar equipo o torneo...">
     </div>

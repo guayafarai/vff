@@ -1,11 +1,11 @@
-# Agenda de Fútbol
+# Agenda Deportiva
 
-Página que muestra los partidos de fútbol del día con su hora, nombre y los canales de TV que los transmiten.
+Página que muestra los partidos de fútbol, NBA y MLB del día con su hora, nombre y los canales de TV que los transmiten.
 
 ## Cómo funciona
 
-- `api/agenda.js`: función serverless (Vercel) que consulta la API pública de [TheSportsDB](https://www.thesportsdb.com/documentation) (`eventstv.php`), deja solo fútbol, agrupa los canales por partido y responde con JSON limpio. Usa caché de 5 minutos.
-- `index.html` + `app.js` + `style.css`: la interfaz. Permite elegir fecha, filtrar por país del canal y buscar por equipo o torneo.
+- `api/agenda.js`: función serverless (Vercel) que consulta la API pública de [TheSportsDB](https://www.thesportsdb.com/documentation) (`eventstv.php`), deja solo fútbol, NBA y MLB (campo `deporte`), agrupa los canales por partido y responde con JSON limpio. Usa caché de 5 minutos.
+- `index.html` + `app.js` + `style.css`: la interfaz. Permite elegir fecha, filtrar por deporte y país del canal y buscar por equipo o torneo.
 
 ## Ejecutar
 

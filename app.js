@@ -59,12 +59,13 @@ async function cargar() {
 function mostrar() {
   const q = norm($('buscar').value);
   const pais = $('pais').value;
+  const deporte = $('deporte').value;
   const lista = $('lista');
   lista.innerHTML = '';
 
   const visibles = partidos
     .map(p => ({ ...p, canales: pais ? p.canales.filter(c => c.pais === pais) : p.canales }))
-    .filter(p => (!pais || p.canales.length) && norm(p.partido + ' ' + p.torneo).includes(q));
+    .filter(p => (!deporte || p.deporte === deporte) && (!pais || p.canales.length) && norm(p.partido + ' ' + p.torneo).includes(q));
 
   if (!visibles.length) {
     lista.innerHTML = '<div class="estado">No hay partidos para mostrar.</div>';
@@ -106,5 +107,6 @@ function mostrar() {
 $('fecha').value = fechaLocal(new Date());
 $('fecha').addEventListener('change', cargar);
 $('pais').addEventListener('change', mostrar);
+$('deporte').addEventListener('change', mostrar);
 $('buscar').addEventListener('input', mostrar);
 cargar();
