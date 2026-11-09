@@ -3,182 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fútbol Libre</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 0; background: #fff; color: #333; }
-    .header { text-align: center; padding: 25px 10px 15px; }
-    .header h1 { color: #0d7338; font-size: 2.5rem; margin: 0 0 15px; }
-    .header p { max-width: 950px; margin: 0 auto 10px; font-size: .92rem; line-height: 1.4; }
-    .container { max-width: 950px; margin: 20px auto; padding: 0 10px; }
-    .bar { background: #12823e; color: #fff; text-align: center; padding: 10px 15px; font-weight: bold; border-radius: 6px 6px 0 0; }
-    .match-box { display: flex; align-items: center; padding: 11px 15px; border: 1px solid #e0e0e0; border-top: 0; }
-    .match-time { font-weight: bold; width: 65px; flex-shrink: 0; }
-    .match-info { flex: 1; min-width: 0; }
-    .tournament { font-weight: bold; }
-    .channels { display: block; font-size: .8rem; color: #777; margin-top: 2px; }
-    
-    /* Contenedor de otras opciones */
-    .other-options { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 15px; background: #f9f9f9; border: 1px solid #e0e0e0; border-top: 0; align-items: center; }
-    .other-options span { font-size: 0.85rem; font-weight: bold; color: #555; margin-right: 5px; }
-    .option-btn { padding: 6px 12px; border: 0; border-radius: 4px; background: #12823e; color: #fff; font-size: 0.8rem; text-decoration: none; font-weight: bold; }
-    .option-btn:hover { background: #0d7338; }
-
-    .player { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border: 1px solid #e0e0e0; border-top: 0; }
-    .player iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
-    .state { padding: 25px; text-align: center; color: #666; }
-    .actions { display: flex; gap: 10px; margin-top: 14px; }
-    .btn { padding: 9px 16px; border: 0; border-radius: 6px; background: #12823e; color: #fff; font-size: .9rem; text-decoration: none; cursor: pointer; font-family: inherit; }
-    .btn:hover { background: #0d7338; }
-    .btn.sec { background: #f0f0f0; color: #333; border: 1px solid #ccc; }
-    .btn.sec:hover { background: #e6e6e6; }
-  </style>
+  <title>VerFutbol</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="stylesheet" href="assets/styles.css">
 </head>
 <body>
-  <div class="header">
-    <h1>Fútbol Libre</h1>
-    <p>Agenda deportiva diaria con horarios, torneos y canales oficiales de transmisión.</p>
-  </div>
+  <header id="site-header"></header>
 
-  <div class="container">
+  <main class="container">
     <div class="bar" id="bar">Reproductor</div>
-    <div class="match-box" id="match-box">
+    <div class="match-box" id="match-box" hidden>
       <div class="match-time" id="match-time"></div>
       <div class="match-info">
         <div><span class="tournament" id="tournament"></span><span id="match-name"></span></div>
         <span class="channels" id="channels"></span>
       </div>
     </div>
-
-    <!-- Contenedor dinámico para otras opciones -->
-    <div id="other-options-container"></div>
-
-    <div class="player" id="player"></div>
+    <div id="options"></div>
+    <div class="player vacio" id="player"><div class="state">Cargando transmisión...</div></div>
     <div class="actions">
       <a class="btn sec" href="index.html">← Volver a la agenda</a>
-      <button class="btn" onclick="location.reload()">Recargar reproductor</button>
+      <button class="btn" id="reload" type="button">Recargar reproductor</button>
     </div>
-  </div>
+  </main>
 
-  <script>
-    (function () {
-      'use strict';
-
-      const ALLOWED_HOSTS = [];
-      const MAX_LAYERS = 10;
-
-      function b64decode(str) {
-        try {
-          let s = str.replace(/ /g, '+').replace(/-/g, '+').replace(/_/g, '/');
-          s += '='.repeat((4 - (s.length % 4)) % 4);
-          const bin = atob(s);
-          const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
-          return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-        } catch (e) { return null; }
-      }
-
-      function resolve(value) {
-        let cur = value.trim();
-        for (let i = 0; i < MAX_LAYERS; i++) {
-          if (/^https?:\/\//i.test(cur)) return cur;
-          const next = b64decode(cur);
-          if (next === null) return null;
-          cur = next.trim();
-        }
-        return /^https?:\/\//i.test(cur) ? cur : null;
-      }
-
-      function hostAllowed(u) {
-        if (!ALLOWED_HOSTS.length) return true;
-        return ALLOWED_HOSTS.some(h => u.hostname === h || u.hostname.endsWith('.' + h));
-      }
-
-      const q = new URLSearchParams(location.search);
-      const torneo    = q.get('t') || '';
-      const partido   = q.get('p') || '';
-      const hora      = q.get('h') || '';
-      const canales   = q.get('c') || '';
-      const optsParam = q.get('opts') || '';
-      const currentR  = q.get('r') || '';
-
-      if (partido || torneo) {
-        document.getElementById('bar').textContent = 'Transmisión en vivo';
-        document.getElementById('tournament').textContent = torneo ? torneo + ': ' : '';
-        document.getElementById('match-name').textContent = partido;
-        document.getElementById('match-time').textContent = hora;
-        document.getElementById('channels').textContent = canales ? 'Canales: ' + canales : '';
-        document.title = (partido || torneo) + ' · Fútbol Libre';
-      } else {
-        document.getElementById('match-box').style.display = 'none';
-      }
-
-      // Renderizar las demás opciones disponibles de manera persistente
-      if (optsParam) {
-        try {
-          const todasLasOpciones = JSON.parse(optsParam);
-          // Filtrar omitiendo la opción que se está reproduciendo actualmente
-          const otras = todasLasOpciones.filter(opt => opt.r !== currentR);
-
-          if (otras.length > 0) {
-            const container = document.getElementById('other-options-container');
-            const wrapper = document.createElement('div');
-            wrapper.className = 'other-options';
-            
-            const label = document.createElement('span');
-            label.textContent = 'Otras opciones:';
-            wrapper.appendChild(label);
-
-            otras.forEach(opt => {
-              const btn = document.createElement('a');
-              btn.className = 'option-btn';
-              btn.textContent = opt.nombre;
-
-              btn.href = 'player.html?r=' + opt.r
-                + '&t=' + encodeURIComponent(torneo)
-                + '&p=' + encodeURIComponent(partido)
-                + '&h=' + encodeURIComponent(hora)
-                + '&c=' + encodeURIComponent(canales)
-                + '&opts=' + encodeURIComponent(optsParam);
-
-              wrapper.appendChild(btn);
-            });
-
-            container.appendChild(wrapper);
-          }
-        } catch (e) {
-          console.error('Error al parsear otras opciones:', e);
-        }
-      }
-
-      const box = document.getElementById('player');
-      function error(msg) {
-        box.style.aspectRatio = 'auto';
-        box.style.background = '#fff';
-        const d = document.createElement('div');
-        d.className = 'state';
-        d.textContent = msg;
-        box.appendChild(d);
-      }
-
-      if (!currentR) return error('Falta el enlace del reproductor (parámetro r).');
-
-      const url = resolve(currentR);
-      if (!url) return error('No se pudo decodificar el enlace.');
-
-      let u;
-      try { u = new URL(url); } catch (e) { return error('El enlace decodificado no es una URL válida.'); }
-      if (u.protocol !== 'https:' && !(u.protocol === 'http:' && location.protocol === 'http:')) {
-        return error('El enlace debe ser https:// (el navegador bloquea http dentro de una página https).');
-      }
-      if (!hostAllowed(u)) return error('Dominio no permitido: ' + u.hostname + '.');
-
-      const f = document.createElement('iframe');
-      f.src = u.href;
-      f.allow = 'autoplay; encrypted-media; fullscreen; picture-in-picture';
-      f.allowFullscreen = true;
-      f.setAttribute('referrerpolicy', 'no-referrer');
-      f.setAttribute('scrolling', 'no');
-      box.appendChild(f);
-    })();
-  </script>
+  <script src="assets/app.js"></script>
+  <script src="assets/player.js"></script>
 </body>
 </html>

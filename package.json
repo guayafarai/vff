@@ -1,0 +1,8 @@
+{
+  "name": "verfutbol",
+  "version": "1.0.0",
+  "private": true,
+  "description": "VerFutbol - agenda deportiva diaria",
+  "type": "module",
+  "engines": { "node": ">=18" }
+}
