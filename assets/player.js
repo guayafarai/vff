@@ -36,7 +36,6 @@
     const f = el('iframe', {
       src: url,
       allow: 'autoplay; encrypted-media; fullscreen; picture-in-picture',
-      allowfullscreen: '',
       referrerpolicy: 'no-referrer',
       scrolling: 'no',
       title: 'Reproductor'

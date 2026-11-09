@@ -7,8 +7,8 @@
     NAME: 'VerFutbol',
     TAGLINE: 'Agenda deportiva diaria con horarios, torneos y canales oficiales de transmisión.',
     API_URL: '/api/agenda',
-    // Origen para rutas relativas que vengan en el feed (banderas y reproductores).
-    ASSET_ORIGIN: 'https://agenda18.com',
+    // Origen para rutas relativas que vengan en el feed.
+    ASSET_ORIGIN: 'https://la18hd.su',
     // Zona horaria en la que el feed publica las horas.
     FEED_OFFSET: '-05:00',
     // Cuánto dura "EN VIVO" desde el inicio del partido (minutos).
@@ -72,24 +72,7 @@
     );
   }
 
-  /* ---------- Datos de ligas, países e iconos ---------- */
-  const PAISES = {
-    'argentina':'ar','brasil':'br','mexico':'mx','colombia':'co','peru':'pe','chile':'cl',
-    'uruguay':'uy','paraguay':'py','ecuador':'ec','bolivia':'bo','venezuela':'ve',
-    'espana':'es','inglaterra':'gb-eng','escocia':'gb-sct','gales':'gb-wls','italia':'it',
-    'alemania':'de','francia':'fr','portugal':'pt','paises bajos':'nl','holanda':'nl',
-    'belgica':'be','turquia':'tr','estados unidos':'us','eeuu':'us','usa':'us','ee.uu.':'us',
-    'arabia saudita':'sa','arabia saudi':'sa','japon':'jp','china':'cn','grecia':'gr','rusia':'ru',
-    'ucrania':'ua','suiza':'ch','austria':'at','croacia':'hr','serbia':'rs','polonia':'pl',
-    'dinamarca':'dk','suecia':'se','noruega':'no','costa rica':'cr','panama':'pa',
-    'honduras':'hn','guatemala':'gt','el salvador':'sv','jamaica':'jm','canada':'ca',
-    'australia':'au','corea del sur':'kr','egipto':'eg','marruecos':'ma','sudafrica':'za',
-    'qatar':'qa','catar':'qa','emiratos arabes':'ae','republica checa':'cz','rumania':'ro',
-    'hungria':'hu','bulgaria':'bg','irlanda':'ie','israel':'il','cuba':'cu',
-    'republica dominicana':'do','nicaragua':'ni','haiti':'ht','trinidad y tobago':'tt',
-    'finlandia':'fi','eslovaquia':'sk','eslovenia':'si','chipre':'cy','islandia':'is'
-  };
-
+  /* ---------- Datos de ligas e iconos ---------- */
   // Orden importa: la primera coincidencia gana.
   const LIGAS = [
     { match: 'formula 1',         tsdb: 4370, emoji: '🏎️' },
@@ -175,47 +158,86 @@
   }
 
   /* ---------- Agenda: carga y normalización ---------- */
-  function normalizar(item) {
-    const a = item.attributes || {};
-    const desc = a.diary_description || '';
+  // El feed es una lista plana: una entrada por enlace. Varias entradas con la
+  // misma fecha, hora y título son el mismo partido con distintas opciones.
+  const CANALES = {
+    disney: 'Disney+', espn: 'ESPN', espn2: 'ESPN2', espn2mx: 'ESPN2 MX', espn3: 'ESPN3',
+    winplus: 'Win+', winsports: 'Win Sports', tudn: 'TUDN', tudnusa: 'TUDN USA',
+    liga1max: 'Liga 1 Max', foxsports: 'Fox Sports', tnt: 'TNT Sports', dsports: 'DSports',
+    tycsports: 'TyC Sports', gol: 'GolTV', golperu: 'Gol Perú', directv: 'DIRECTV'
+  };
+
+  function prettify(s) {
+    return s.length <= 4 ? s.toUpperCase() : s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  // Deduce el canal a partir del enlace (?stream=disney19, .../repro/espn2tv.html, ...).
+  function infoEnlace(link) {
+    let u;
+    try { u = new URL(link); } catch { return { base: '', op: 0, alt: false }; }
+    let s = u.searchParams.get('stream') || '';
+    let alt = false;
+    if (!s) {
+      alt = true; // enlace de un reproductor externo
+      const g = u.searchParams.get('get') || u.pathname;
+      s = g.split('/').pop().replace(/\.html?$/i, '').replace(/tv$/i, '');
+    }
+    s = s.toLowerCase();
+    const m = /_op(\d+)$/.exec(s);
+    const op = m ? Number(m[1]) : 0;
+    s = s.replace(/_op\d+$/, '').replace(/^disney\d*$/, 'disney');
+    return { base: CANALES[s] || (s ? prettify(s) : ''), op, alt };
+  }
+
+  function normalizar(items) {
+    const a = items[0];
+    const desc = a.title || '';
     const i = desc.indexOf(': ');
     const torneo = i > -1 ? desc.slice(0, i) : '';
     const partido = i > -1 ? desc.slice(i + 2) : desc;
 
-    const inicio = new Date(`${a.date_diary}T${a.diary_hour}${CONFIG.FEED_OFFSET}`);
-
-    const pais = a.country?.data?.attributes?.name || '';
-    const imgApi = a.country?.data?.attributes?.image?.data?.attributes?.url;
+    const inicio = new Date(`${a.date}T${a.time}${CONFIG.FEED_OFFSET}`);
     const liga = ligaDe(torneo);
-    const code = PAISES[norm(pais)] || liga?.flag || '';
 
     const canales = [];
     const enlaces = [];
-    for (const e of a.embeds?.data || []) {
-      const attr = e.attributes || {};
-      const nombre = (attr.embed_name || '').trim();
-      const url = absUrl((attr.embed_iframe || '').trim());
-
-      if (nombre && !/movil/i.test(nombre) && !/op2/i.test(nombre)) canales.push(nombre);
+    const vistos = new Set();
+    const usados = {};
+    for (const it of items) {
+      const url = absUrl((it.link || '').trim());
       // Solo https: el navegador bloquea http dentro de una página https.
-      if (/^https:\/\//i.test(url)) enlaces.push({ url, nombre, idioma: (attr.idioma || '').trim() });
+      if (!/^https:\/\//i.test(url) || vistos.has(url)) continue;
+      vistos.add(url);
+
+      const { base, op, alt } = infoEnlace(url);
+      if (base && !op && !canales.includes(base)) canales.push(base);
+
+      let etiqueta = base || '';
+      if (op) etiqueta += ` (Op. ${op})`;
+      else if (alt && etiqueta) etiqueta += ' (alt)';
+      usados[etiqueta] = (usados[etiqueta] || 0) + 1;
+      if (usados[etiqueta] > 1) etiqueta += ` ${usados[etiqueta]}`;
+
+      enlaces.push({ url, nombre: base, idioma: (it.language || '').trim(), etiqueta });
     }
     enlaces.forEach((e, idx) => {
-      e.etiqueta = e.nombre || (enlaces.length > 1 ? 'Opción ' + (idx + 1) : 'Ver');
+      if (!e.etiqueta) e.etiqueta = enlaces.length > 1 ? 'Opción ' + (idx + 1) : 'Ver';
     });
 
+    // Si el feed informa el estado, se respeta; si no, se calcula por la hora.
     const ahora = Date.now();
-    const envivo = enlaces.length > 0 && ahora >= inicio.getTime() &&
-      ahora <= inicio.getTime() + CONFIG.LIVE_WINDOW_MIN * 60000;
+    const status = norm(a.status);
+    const envivo = enlaces.length > 0 && (status
+      ? status.includes('vivo')
+      : ahora >= inicio.getTime() && ahora <= inicio.getTime() + CONFIG.LIVE_WINDOW_MIN * 60000);
 
     return {
-      id: String(item.id ?? hash(`${a.date_diary}|${a.diary_hour}|${desc}`)),
-      inicio, torneo, partido, pais, envivo,
+      id: hash(`${a.date}|${a.time}|${desc}`),
+      inicio, torneo, partido, pais: '', envivo,
       tsdb: liga?.tsdb || null,
       emoji: liga?.emoji || '',
-      banderas: [flagUrl(code), imgApi ? absUrl(imgApi) : ''].filter(Boolean),
-      canales: [...new Set(canales)],
-      enlaces
+      banderas: [flagUrl(liga?.flag)].filter(Boolean),
+      canales, enlaces
     };
   }
 
@@ -223,7 +245,16 @@
     const res = await fetch(CONFIG.API_URL, { cache: 'no-store' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const json = await res.json();
-    return (Array.isArray(json?.data) ? json.data : [])
+    if (!Array.isArray(json)) throw new Error('Formato de agenda inesperado');
+
+    const grupos = new Map();
+    for (const it of json) {
+      if (!it || !it.title || !it.date || !it.time) continue;
+      const k = `${it.date}|${it.time}|${it.title}`;
+      if (!grupos.has(k)) grupos.set(k, []);
+      grupos.get(k).push(it);
+    }
+    return [...grupos.values()]
       .map(normalizar)
       .filter(m => !isNaN(m.inicio))
       .sort((a, b) => a.inicio - b.inicio);
