@@ -1,4 +1,4 @@
-// Proxy hacia TheSportsDB: devuelve solo fútbol, con hora, nombre y canales.
+// Proxy hacia TheSportsDB: devuelve fútbol, NBA y MLB, con hora, nombre y canales.
 const BASE = 'https://www.thesportsdb.com/api/v1/json';
 
 // TheSportsDB guarda la hora en UTC pero sin "Z"; se la agregamos.
@@ -7,6 +7,16 @@ function aISO(texto) {
   const t = /(Z|[+-]\d\d:\d\d)$/.test(texto) ? texto : texto + 'Z';
   const d = new Date(t);
   return isNaN(d) ? null : d.toISOString();
+}
+
+// Clasifica el evento: 'futbol', 'nba', 'mlb' o null (se descarta).
+function categoria(e) {
+  const deporte = (e.strSport || '').toLowerCase();
+  const liga = e.strLeague || '';
+  if (deporte === 'soccer' || deporte === 'football') return 'futbol';
+  if (deporte === 'basketball' && /\bnba\b/i.test(liga)) return 'nba';
+  if (deporte === 'baseball' && /\bmlb\b|major league baseball/i.test(liga)) return 'mlb';
+  return null;
 }
 
 export default async function handler(req, res) {
@@ -22,16 +32,26 @@ export default async function handler(req, res) {
     if (!r.ok) throw new Error('TheSportsDB respondió ' + r.status);
     const json = await r.json();
 
+    // Diagnóstico: /api/agenda?fecha=AAAA-MM-DD&debug=1 muestra qué devuelve TheSportsDB.
+    if (req.query.debug) {
+      const eventos = json.tvevents || [];
+      const deportes = {};
+      for (const e of eventos) deportes[e.strSport] = (deportes[e.strSport] || 0) + 1;
+      return res.status(200).json({ claves: Object.keys(json), total: eventos.length, deportes, ejemplo: eventos[0] || null });
+    }
+
     // Un partido sale una vez por canal; los agrupamos por idEvent.
     const porId = new Map();
     for (const e of json.tvevents || []) {
-      if (e.strSport !== 'Soccer') continue;
+      const deporte = categoria(e);
+      if (!deporte) continue;
       const inicio = aISO(e.strTimestamp || `${e.dateEvent}T${e.strTime}`);
       if (!inicio) continue;
 
       if (!porId.has(e.idEvent)) {
         porId.set(e.idEvent, {
           id: e.idEvent,
+          deporte,
           inicio,
           torneo: e.strLeague || '',
           partido: e.strEvent || `${e.strHomeTeam} vs ${e.strAwayTeam}`,
