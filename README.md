@@ -1,19 +1,21 @@
 # Agenda Deportiva
 
-Página que muestra los partidos de fútbol, NBA y MLB del día con su hora, nombre y los canales de TV que los transmiten.
+Página con los partidos de fútbol, NBA y MLB del día: hora, nombre del partido y canales de TV.
 
 ## Cómo funciona
 
-- `api/agenda.js`: función serverless (Vercel) que consulta la API pública de [TheSportsDB](https://www.thesportsdb.com/documentation) (`eventstv.php`), deja solo fútbol, NBA y MLB (campo `deporte`), agrupa los canales por partido y responde con JSON limpio. Usa caché de 5 minutos.
-- `index.html` + `app.js` + `style.css`: la interfaz. Permite elegir fecha, filtrar por deporte y país del canal y buscar por equipo o torneo.
+- `api/agenda.js`: función serverless (Vercel). Consulta la API pública de ESPN (`site.api.espn.com`) liga por liga, unifica los datos y responde JSON limpio con caché de 2 minutos.
+- `index.html` + `app.js` + `style.css`: la interfaz. Elige fecha, filtra por deporte y busca por equipo o torneo.
 
 ## Ejecutar
 
-1. Instala Vercel CLI: `npm i -g vercel`
-2. En la carpeta del proyecto: `vercel dev`
-3. (Opcional) Clave propia de TheSportsDB: define la variable `THESPORTSDB_KEY`. Sin ella usa la clave gratuita `123`, que tiene límite de peticiones.
+1. `npm i -g vercel`
+2. `vercel dev` en la carpeta del proyecto.
+3. Diagnóstico: `/api/agenda?fecha=AAAA-MM-DD&debug=1` muestra cuántos eventos devolvió cada liga.
 
 ## Notas
 
-- Las horas se muestran en la zona horaria de tu navegador.
-- La cobertura de canales depende de los datos de TheSportsDB; algunos partidos pueden no tener canal.
+- La API de ESPN no está documentada oficialmente; puede cambiar sin aviso.
+- Los canales que devuelve son los de la transmisión en EE. UU. (ESPN, Fox, TNT, Peacock, etc.).
+- Las horas se muestran en la zona horaria del navegador.
+- Para agregar ligas, añade una línea a `LIGAS` en `api/agenda.js`.

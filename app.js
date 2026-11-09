@@ -6,7 +6,7 @@ let partidos = [];
 // Quita tildes y mayúsculas para buscar fácil.
 const norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
-// Fecha local en formato AAAA-MM-DD (en-CA ya usa ese formato).
+// Fecha local AAAA-MM-DD (el formato en-CA ya es ese).
 const fechaLocal = d => d.toLocaleDateString('en-CA');
 const hora = d => d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', hour12: false });
 
@@ -20,10 +20,7 @@ async function pedir(fecha) {
   const res = await fetch(`${API_URL}?fecha=${fecha}`);
   if (!res.ok) throw new Error('HTTP ' + res.status);
   const json = await res.json();
-  // Si la API desplegada es otra versión, avisamos en vez de fallar sin explicación.
-  if (!Array.isArray(json.partidos)) {
-    throw new Error('Respuesta inesperada de /api/agenda (falta "partidos"): ' + JSON.stringify(json).slice(0, 200));
-  }
+  if (!Array.isArray(json.partidos)) throw new Error('Respuesta inesperada de /api/agenda');
   return json.partidos;
 }
 
@@ -31,8 +28,8 @@ async function cargar() {
   const fecha = $('fecha').value;
   $('lista').innerHTML = '<div class="estado">Cargando agenda...</div>';
   try {
-    // La API guarda los partidos por fecha UTC, así que un partido de la noche
-    // en América cae al día siguiente. Pedimos ambos días y filtramos por fecha local.
+    // ESPN agrupa por su propio día; un partido de la noche puede caer al día siguiente.
+    // Pedimos dos días y filtramos por la fecha local del usuario.
     const [hoy, manana] = await Promise.all([pedir(fecha), pedir(sumarDia(fecha, 1))]);
     const vistos = new Set();
     partidos = [...hoy, ...manana]
@@ -40,12 +37,6 @@ async function cargar() {
       .map(p => ({ ...p, inicio: new Date(p.inicio) }))
       .filter(p => fechaLocal(p.inicio) === fecha)
       .sort((a, b) => a.inicio - b.inicio);
-
-    const paises = [...new Set(partidos.flatMap(p => p.canales.map(c => c.pais)).filter(Boolean))].sort();
-    const actual = $('pais').value;
-    $('pais').innerHTML = '<option value="">Todos los países</option>' +
-      paises.map(p => `<option value="${p}">${p}</option>`).join('');
-    $('pais').value = paises.includes(actual) ? actual : '';
 
     $('titulo').textContent = 'Partidos · ' +
       new Date(fecha + 'T12:00:00').toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -58,14 +49,12 @@ async function cargar() {
 
 function mostrar() {
   const q = norm($('buscar').value);
-  const pais = $('pais').value;
   const deporte = $('deporte').value;
   const lista = $('lista');
   lista.innerHTML = '';
 
-  const visibles = partidos
-    .map(p => ({ ...p, canales: pais ? p.canales.filter(c => c.pais === pais) : p.canales }))
-    .filter(p => (!deporte || p.deporte === deporte) && (!pais || p.canales.length) && norm(p.partido + ' ' + p.torneo).includes(q));
+  const visibles = partidos.filter(p =>
+    (!deporte || p.deporte === deporte) && norm(p.partido + ' ' + p.torneo).includes(q));
 
   if (!visibles.length) {
     lista.innerHTML = '<div class="estado">No hay partidos para mostrar.</div>';
@@ -85,19 +74,28 @@ function mostrar() {
     const titulo = document.createElement('div');
     const torneo = document.createElement('span');
     torneo.className = 'torneo';
-    torneo.textContent = p.torneo ? p.torneo + ': ' : '';
+    torneo.textContent = p.torneo + ': ';
     titulo.append(torneo, document.createTextNode(p.partido));
+
+    if (p.estado === 'in' || p.estado === 'post') {
+      const e = document.createElement('span');
+      e.className = p.estado === 'in' ? 'etiqueta vivo' : 'etiqueta final';
+      e.textContent = p.estado === 'in' ? 'EN VIVO' : 'FINAL';
+      titulo.appendChild(e);
+    }
     info.appendChild(titulo);
 
-    const canales = document.createElement('div');
-    canales.className = 'canales';
-    for (const c of p.canales) {
-      const chip = document.createElement('span');
-      chip.className = 'canal';
-      chip.textContent = pais || !c.pais ? c.nombre : `${c.nombre} (${c.pais})`;
-      canales.appendChild(chip);
+    if (p.canales.length) {
+      const canales = document.createElement('div');
+      canales.className = 'canales';
+      for (const nombre of p.canales) {
+        const chip = document.createElement('span');
+        chip.className = 'canal';
+        chip.textContent = nombre;
+        canales.appendChild(chip);
+      }
+      info.appendChild(canales);
     }
-    info.appendChild(canales);
 
     fila.append(h, info);
     lista.appendChild(fila);
@@ -106,7 +104,6 @@ function mostrar() {
 
 $('fecha').value = fechaLocal(new Date());
 $('fecha').addEventListener('change', cargar);
-$('pais').addEventListener('change', mostrar);
 $('deporte').addEventListener('change', mostrar);
 $('buscar').addEventListener('input', mostrar);
 cargar();

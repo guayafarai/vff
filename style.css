@@ -16,3 +16,6 @@ body { font-family: Arial, sans-serif; margin: 0; background: #fff; color: #333;
 .canales { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .canal { background: #eef7f1; border: 1px solid #cfe6d7; border-radius: 12px; padding: 2px 10px; font-size: .78rem; }
 .estado { padding: 25px; text-align: center; color: #666; }
+.etiqueta { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 4px; font-size: .7rem; font-weight: bold; vertical-align: middle; color: #fff; }
+.etiqueta.vivo { background: #d32f2f; }
+.etiqueta.final { background: #777; }
