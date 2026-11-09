@@ -1,5 +1,5 @@
-// Proxy de la agenda: evita problemas de CORS y deja cachear la respuesta en el CDN de Vercel.
-const SOURCE_URL = 'https://agenda18.com/agenda.json';
+// Proxy de la agenda (la18hd.su): evita problemas de CORS y deja cachear la respuesta en el CDN de Vercel.
+const SOURCE_URL = 'https://la18hd.su/eventos/json/agenda123.json';
 const TIMEOUT_MS = 8000;
 
 export default async function handler(req, res) {
@@ -19,6 +19,7 @@ export default async function handler(req, res) {
     if (!response.ok) throw new Error(`Servidor de origen respondió ${response.status}`);
 
     const data = await response.json();
+    if (!Array.isArray(data)) throw new Error('Formato inesperado del origen');
 
     // 1 min fresco en el CDN; hasta 2 min más sirviendo copia vieja mientras se refresca.
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
