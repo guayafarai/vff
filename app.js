@@ -19,7 +19,12 @@ function sumarDia(fecha, n) {
 async function pedir(fecha) {
   const res = await fetch(`${API_URL}?fecha=${fecha}`);
   if (!res.ok) throw new Error('HTTP ' + res.status);
-  return (await res.json()).partidos;
+  const json = await res.json();
+  // Si la API desplegada es otra versión, avisamos en vez de fallar sin explicación.
+  if (!Array.isArray(json.partidos)) {
+    throw new Error('Respuesta inesperada de /api/agenda (falta "partidos"): ' + JSON.stringify(json).slice(0, 200));
+  }
+  return json.partidos;
 }
 
 async function cargar() {
