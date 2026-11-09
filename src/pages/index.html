@@ -1,0 +1,39 @@
+---
+title: {{name}}: partidos de hoy, horarios y canales en vivo
+path: /
+header: home
+h1: {{name}}: partidos de fútbol de hoy
+social: true
+scripts: home.js
+sitemap: true
+priority: 1.0
+changefreq: hourly
+---
+<head-extra>
+<script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"WebSite","name":"{{name}}","url":"{{url}}","inLanguage":"{{lang}}"}
+  </script>
+</head-extra>
+<main class="container">
+    <div class="toolbar">
+      <input id="search" type="search" placeholder="Buscar equipo, torneo o canal..." aria-label="Buscar partidos">
+    </div>
+    <h2 class="bar" id="agenda-date">Agenda deportiva de hoy</h2>
+    <div id="matches-list"><div class="state">Cargando agenda...</div></div>
+
+    <section class="content-info">
+      <h2>Partidos de hoy y horarios</h2>
+      <p>{{name}} reúne en una sola lista los partidos del día ordenados por hora. Cada encuentro muestra el torneo, los equipos y los canales que lo transmiten. Los horarios se ajustan automáticamente a la zona horaria de tu dispositivo, así que no tienes que hacer conversiones.</p>
+
+      <h2>Ligas y torneos que puedes consultar</h2>
+      <p>La agenda incluye fútbol de Latinoamérica y Europa: Liga Profesional Argentina, Liga MX, Liga 1 de Perú, Primera División de Chile, LigaPro de Ecuador, Copa Libertadores y Copa Sudamericana, además de LaLiga, Premier League, Serie A, Bundesliga, Ligue 1 y Champions League. También aparecen partidos de selecciones cuando hay fecha FIFA o torneos internacionales.</p>
+
+      <h2>Canales deportivos</h2>
+      <p>Cada partido indica la cadena que tiene los derechos en la región, como DSports, ESPN, Fox Sports, TNT Sports, TyC Sports, TUDN, Win Sports o Liga 1 Max. Usa el buscador para filtrar por equipo, torneo o canal.</p>
+
+      <h2>Cómo usar la agenda</h2>
+      <p>Escribe el nombre de tu equipo en el buscador o recorre la lista del día. Los partidos en curso se marcan con la etiqueta «EN VIVO». La agenda se actualiza sola cada pocos minutos; no necesitas recargar la página.</p>
+    </section>
+  </main>
+
+<noscript><div class="state">{{name}} necesita JavaScript para mostrar la agenda.</div></noscript>
