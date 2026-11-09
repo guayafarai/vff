@@ -1,0 +1,62 @@
+:root {
+  --verde: #12823e;
+  --verde-oscuro: #0d7338;
+  --borde: #e0e0e0;
+  --texto: #333;
+  --gris: #777;
+}
+* { box-sizing: border-box; }
+body { font-family: Arial, sans-serif; margin: 0; background: #fff; color: var(--texto); }
+
+/* Cabecera compartida */
+.header { text-align: center; padding: 25px 10px 15px; }
+.header h1 { color: var(--verde-oscuro); font-size: 2.5rem; margin: 0 0 15px; }
+.header h1 a { color: inherit; text-decoration: none; }
+.header p { max-width: 950px; margin: 0 auto 10px; font-size: .92rem; line-height: 1.4; }
+
+.container { max-width: 950px; margin: 20px auto; padding: 0 10px; }
+.bar { background: var(--verde); color: #fff; text-align: center; padding: 10px 15px; font-weight: bold; border-radius: 6px 6px 0 0; }
+.state { padding: 25px; text-align: center; color: #666; }
+
+/* Botones */
+.watch-btn, .option-btn, .btn {
+  border: 0; border-radius: 6px; background: var(--verde); color: #fff;
+  text-decoration: none; cursor: pointer; font-family: inherit;
+}
+.watch-btn:hover, .option-btn:hover, .btn:hover { background: var(--verde-oscuro); }
+.watch-btn:focus-visible, .option-btn:focus-visible, .btn:focus-visible { outline: 3px solid #9ad9b3; outline-offset: 2px; }
+.watch-btn { flex-shrink: 0; padding: 7px 14px; font-size: .85rem; }
+.btn { padding: 9px 16px; font-size: .9rem; }
+.btn.sec { background: #f0f0f0; color: var(--texto); border: 1px solid #ccc; }
+.btn.sec:hover { background: #e6e6e6; }
+
+/* Partidos (comparten home y player) */
+.match-time { font-weight: bold; width: 65px; flex-shrink: 0; }
+.match-info { flex: 1 1 260px; min-width: 0; }
+.tournament { font-weight: bold; }
+.channels { display: block; font-size: .8rem; color: var(--gris); margin-top: 2px; }
+.live { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 4px; background: #d32f2f; color: #fff; font-size: .7rem; font-weight: bold; vertical-align: middle; }
+
+/* Home */
+.toolbar { margin-bottom: 10px; }
+.toolbar input { width: 100%; padding: 10px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: .95rem; }
+.day-sep { background: #eef6f0; color: var(--verde-oscuro); font-weight: bold; padding: 7px 15px; border-bottom: 1px solid var(--borde); text-transform: capitalize; }
+.match-row { display: flex; align-items: center; flex-wrap: wrap; padding: 11px 15px; border-bottom: 1px solid var(--borde); }
+.match-row:hover { background: #f6f6f6; }
+.match-icon { width: 40px; margin-right: 12px; flex-shrink: 0; display: flex; justify-content: center; }
+.match-icon img { width: 28px; height: 28px; object-fit: contain; }
+.watch-links { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; flex: 0 1 auto; max-width: 55%; margin-left: 10px; }
+@media (max-width: 700px) {
+  .watch-links { max-width: 100%; width: 100%; justify-content: flex-start; margin: 8px 0 0 0; }
+}
+
+/* Player */
+.match-box { display: flex; align-items: center; padding: 11px 15px; border: 1px solid var(--borde); border-top: 0; }
+.other-options { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 15px; background: #f9f9f9; border: 1px solid var(--borde); border-top: 0; align-items: center; }
+.other-options span { font-size: .85rem; font-weight: bold; color: #555; margin-right: 5px; }
+.option-btn { padding: 6px 12px; font-size: .8rem; font-weight: bold; }
+.option-btn.active { background: #fff; color: var(--verde-oscuro); outline: 2px solid var(--verde); pointer-events: none; }
+.player { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border: 1px solid var(--borde); border-top: 0; }
+.player.vacio { aspect-ratio: auto; background: #fff; }
+.player iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
