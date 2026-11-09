@@ -1,5 +1,0 @@
-{
-  "rewrites": [
-    { "source": "/api/agenda", "destination": "/api/agenda.js" }
-  ]
-}
