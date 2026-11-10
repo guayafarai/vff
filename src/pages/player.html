@@ -3,7 +3,7 @@ title: Reproductor · {{name}}
 robots: noindex, follow
 scripts: player.js
 ---
-<main class="container">
+<main class="container" id="main">
     <h1 class="bar" id="bar">Reproductor</h1>
     <div class="match-box" id="match-box" hidden>
       <div class="match-time" id="match-time"></div>
@@ -16,6 +16,7 @@ scripts: player.js
     <div class="player vacio" id="player"><div class="state">Cargando transmisión...</div></div>
     <div class="actions">
       <a class="btn sec" href="/">← Volver a la agenda</a>
+      <button class="btn" id="next" type="button" hidden>Probar otra opción</button>
       <button class="btn" id="reload" type="button">Recargar reproductor</button>
     </div>
   </main>

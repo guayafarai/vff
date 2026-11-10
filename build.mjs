@@ -1,6 +1,7 @@
 // Genera dist/ a partir de src/. Sin dependencias (Node >= 18).
 // Todo lo compartido vive en src/site.json, src/partials y src/layouts.
 import { readFile, writeFile, mkdir, readdir, rm, copyFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -12,7 +13,6 @@ const site = JSON.parse(await readFile(path.join(SRC, 'site.json'), 'utf8'));
 site.domain = site.domain.replace(/\/+$/, '');
 site.ogImageUrl = site.domain + site.ogImage;
 site.year = String(new Date().getFullYear());
-const today = new Date().toISOString().slice(0, 10);
 
 const read = (...p) => readFile(path.join(SRC, ...p), 'utf8');
 
@@ -64,12 +64,26 @@ async function* walk(dir) {
 await rm(OUT, { recursive: true, force: true });
 
 // 1) Archivos estáticos (los .js admiten {{variables}} del sitio)
+// Los .css y .js se referencian con ?v=<hash del contenido>: tras cada despliegue el navegador
+// descarga el código nuevo y los módulos nunca se mezclan con versiones viejas de la caché.
 const staticDir = path.join(SRC, 'static');
-for await (const file of walk(staticDir)) {
+const archivos = [];
+for await (const file of walk(staticDir)) archivos.push(file);
+
+const hv = createHash('sha256');
+for (const file of archivos.filter(f => /\.(js|css)$/.test(f)).sort()) {
+  hv.update(path.relative(staticDir, file)).update(await readFile(file));
+}
+site.assetV = hv.digest('hex').slice(0, 8);
+
+for (const file of archivos) {
   const dest = path.join(OUT, path.relative(staticDir, file));
   await mkdir(path.dirname(dest), { recursive: true });
   if (file.endsWith('.js')) {
-    await writeFile(dest, fill(await readFile(file, 'utf8'), site, file));
+    let code = fill(await readFile(file, 'utf8'), site, file);
+    // import ... from './x.js'  ->  './x.js?v=hash'
+    code = code.replace(/(\bfrom\s+['"])(\.\/[\w.-]+\.js)(['"])/g, `$1$2?v=${site.assetV}$3`);
+    await writeFile(dest, code);
   } else {
     await copyFile(file, dest);
   }
@@ -87,8 +101,8 @@ for (const name of (await readdir(path.join(SRC, 'pages'))).filter(f => f.endsWi
   vars.social = data.social === 'true' ? await includes('{{> social}}') : '';
   vars.header = await includes(`{{> header-${data.header || 'simple'}}}`);
   vars.scripts = data.scripts
-    ? ['app.js', ...data.scripts.split(',').map(s => s.trim())]
-        .map(s => `<script src="/assets/${s}" defer></script>`).join('\n  ')
+    ? data.scripts.split(',').map(x => x.trim()).filter(Boolean)
+        .map(x => `<script type="module" src="/assets/${x}?v=${site.assetV}"></script>`).join('\n  ')
     : '';
 
   const extra = /<head-extra>([\s\S]*?)<\/head-extra>/.exec(body);
@@ -97,7 +111,7 @@ for (const name of (await readdir(path.join(SRC, 'pages'))).filter(f => f.endsWi
 
   await writeFile(path.join(OUT, name), fill(base, vars, `pages/${name}`));
   if (data.sitemap === 'true') {
-    sitemap.push({ loc: vars.url, priority: data.priority, changefreq: data.changefreq });
+    sitemap.push({ loc: vars.url, lastmod: data.lastmod, priority: data.priority, changefreq: data.changefreq });
   }
 }
 
@@ -109,7 +123,8 @@ await writeFile(path.join(OUT, 'robots.txt'),
 
 await writeFile(path.join(OUT, 'sitemap.xml'),
   `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
-  sitemap.map(u => `  <url><loc>${u.loc}</loc><lastmod>${today}</lastmod>` +
+  sitemap.map(u => `  <url><loc>${u.loc}</loc>` +
+    (u.lastmod ? `<lastmod>${u.lastmod}</lastmod>` : '') +
     (u.changefreq ? `<changefreq>${u.changefreq}</changefreq>` : '') +
     (u.priority ? `<priority>${u.priority}</priority>` : '') + `</url>`).join('\n') +
   `\n</urlset>\n`);
@@ -125,4 +140,4 @@ await writeFile(path.join(OUT, 'manifest.webmanifest'), JSON.stringify({
   ]
 }, null, 2) + '\n');
 
-console.log(`Sitio generado en dist/ (dominio: ${site.domain})`);
+console.log(`Sitio generado en dist/ (dominio: ${site.domain}, assets v=${site.assetV})`);

@@ -8,6 +8,9 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "node build.mjs"
+    "build": "node build.mjs",
+    "dev": "node dev.mjs",
+    "test": "node --test",
+    "check": "node build.mjs && node --test"
   }
 }

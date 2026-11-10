@@ -14,11 +14,21 @@ changefreq: hourly
   {"@context":"https://schema.org","@type":"WebSite","name":"{{name}}","url":"{{url}}","inLanguage":"{{lang}}"}
   </script>
 </head-extra>
-<main class="container">
+<main class="container" id="main">
     <div class="toolbar">
-      <input id="search" type="search" placeholder="Buscar equipo, torneo o canal..." aria-label="Buscar partidos">
+      <label for="search" class="sr-only">Buscar partidos</label>
+      <input id="search" type="search" placeholder="Buscar equipo, torneo o canal..." autocomplete="off">
+      <div class="filters" id="filters" hidden>
+        <select id="f-torneo" aria-label="Filtrar por torneo"><option value="">Todos los torneos</option></select>
+        <select id="f-canal" aria-label="Filtrar por canal"><option value="">Todos los canales</option></select>
+        <button type="button" class="chip" data-filtro="soloFutbol" aria-pressed="true">⚽ Solo fútbol</button>
+        <button type="button" class="chip" data-filtro="soloVivo" aria-pressed="false">🔴 En vivo</button>
+        <button type="button" class="chip" data-filtro="soloFavs" aria-pressed="false">★ Mis equipos</button>
+      </div>
     </div>
-    <h2 class="bar" id="agenda-date">Agenda deportiva de hoy</h2>
+    <nav class="days" id="days" aria-label="Elegir día" hidden></nav>
+    <h2 class="bar" id="agenda-date">Partidos de fútbol de hoy</h2>
+    <p class="sr-only" id="status" role="status"></p>
     <div id="matches-list"><div class="state">Cargando agenda...</div></div>
 
     <section class="content-info">
@@ -32,7 +42,7 @@ changefreq: hourly
       <p>Cada partido indica la cadena que tiene los derechos en la región, como DSports, ESPN, Fox Sports, TNT Sports, TyC Sports, TUDN, Win Sports o Liga 1 Max. Usa el buscador para filtrar por equipo, torneo o canal.</p>
 
       <h2>Cómo usar la agenda</h2>
-      <p>Escribe el nombre de tu equipo en el buscador o recorre la lista del día. Los partidos en curso se marcan con la etiqueta «EN VIVO». La agenda se actualiza sola cada pocos minutos; no necesitas recargar la página.</p>
+      <p>Escribe el nombre de tu equipo en el buscador o elige el día (ayer, hoy, mañana) y recorre la lista. Los partidos en curso se marcan con la etiqueta «EN VIVO», los próximos muestran cuánto falta para que empiecen y los terminados quedan agrupados al final. Puedes filtrar por torneo o canal, ver solo fútbol o solo lo que se juega ahora, y marcar con la estrella tus equipos para verlos primero. La agenda se actualiza sola cada pocos minutos; no necesitas recargar la página.</p>
     </section>
   </main>
 
