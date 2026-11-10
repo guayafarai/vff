@@ -5,7 +5,7 @@ import {
   estado, cuentaAtras, ordenarEnlaces, prefCanal, guardarPrefCanal, leer, guardar
 } from './app.js';
 
-const filtros = { q: '', torneo: '', canal: '', soloFutbol: true, soloVivo: false, soloFavs: false };
+const filtros = { q: '', torneo: '', canal: '', soloFutbol: false, soloVivo: false, soloFavs: false };
 let partidos = [];
 let dia = '';
 let sigPrevia = '';
